@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agentic Dependency Remediation Prototype</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script>
+    window.API_BASE_URL = "http://127.0.0.1:8010";
+  </script>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-left">
+      <button id="open-scan-modal" class="hero-action">New Scan</button>
+      <button id="home-button" class="hero-action secondary">Home</button>
+    </div>
+    <div class="hero-copy">
+      <h1>Agentic Dependency Remediation</h1>
+      <p>Hackathon prototype: scan, remediate, score confidence, validate, and evidence</p>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="page active" id="dashboard-page">
+      <div class="card dashboard-card" id="dashboard">
+        <div class="page-head">
+          <h2>Dashboard</h2>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div class="toolbar-row">
+          <button id="refresh-runs">Refresh Runs</button>
+        </div>
+        <div id="runs-table" class="runs-grid"></div>
+      </div>
+    </section>
+
+    <section class="page" id="run-detail-page">
+      <div class="card detail-card" id="run-detail">
+        <div class="page-head">
+          <h2>Run Detail</h2>
+          <button id="run-detail-home" class="secondary slim-button">Home</button>
+        </div>
+        <p id="selected-run-hint">Select a run from dashboard to view details.</p>
+        <div id="run-detail-body"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-shell hidden" id="scan-modal-shell">
+    <div class="modal-backdrop" id="scan-modal-backdrop"></div>
+    <div class="modal-card">
+      <div class="page-head">
+        <h2>New Scan</h2>
+        <button id="close-scan-modal" class="secondary slim-button">Close</button>
+      </div>
+      <form id="scan-form">
+        <label for="repo-url">Repository URL</label>
+        <input id="repo-url" required placeholder="https://github.com/org/repo" />
+        <label for="requested-by">Requested By</label>
+        <input id="requested-by" value="hackathon-user" />
+        <button type="submit" id="start-scan-button">Start Scan</button>
+      </form>
+      <div class="scan-progress hidden" id="scan-progress-panel">
+        <div class="progress-meta">
+          <strong id="scan-progress-title">Scan in progress</strong>
+          <span class="muted" id="scan-progress-phase">queued</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="scan-progress-fill"></div>
+        </div>
+        <p class="muted" id="scan-progress-message">Waiting for run to start.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-shell hidden" id="remediation-modal-shell">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+      <div class="page-head">
+        <h2>Remediation Progress</h2>
+      </div>
+      <div class="scan-progress" id="remediation-progress-panel">
+        <div class="progress-meta">
+          <strong id="remediation-progress-title">Remediation in progress</strong>
+          <span class="muted" id="remediation-progress-phase">remediation_requested</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="remediation-progress-fill"></div>
+        </div>
+        <p class="muted" id="remediation-progress-message">Waiting for remediation to start.</p>
+        <div class="progress-commentary muted" id="remediation-commentary"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js?v=20260719-2"></script>
+</body>
+</html>
