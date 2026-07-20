@@ -30,12 +30,11 @@ This folder contains a runnable hackathon prototype wired to an external ADK Age
 
 ## Run Locally
 
-1. Create and activate a Python environment.
+1. Create and activate a Python environment and run the below commands from the root folder.
 2. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
-cd /Users/kotwatu/Development/GitRepos/Services/TestJava/java-vulnerabilities-remover
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
