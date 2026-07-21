@@ -6,7 +6,9 @@
   <title>SecureRemediate</title>
   <link rel="stylesheet" href="/styles.css" />
   <script>
-    window.API_BASE_URL = "https://bamboo-passerine-twiddling.ngrok-free.dev";
+    // Same-origin by default (Render serves both frontend + API from one host)
+    // Override via localStorage if frontend is hosted elsewhere (e.g. Vercel)
+    window.API_BASE_URL = localStorage.getItem("API_BASE_URL") || "";
   </script>
 </head>
 <body>
@@ -84,6 +86,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=3"></script>
+  <script src="/app.js?v=4"></script>
 </body>
 </html>
