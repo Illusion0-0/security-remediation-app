@@ -1,86 +1,67 @@
-# Agentic Dependency Remediation Prototype v2 (Pure ADK)
+# Security Remediation Application
 
-This folder contains a runnable hackathon prototype wired to an external ADK Agent Server. No local scan, remediation, validation, or evidence processing is executed inside this app.
+AI-Assisted Secure Software Development (Hackathon 2026 — Example 2.4).
 
-- Scanner agent (ADK)
-- Remediation agent (ADK)
-- Validation agent (ADK)
-- Report generation agent (ADK)
-- Orchestrator: queue-based workflow and UI-facing state management
+The orchestration layer and 10-screen UI for the agentic vulnerability remediation
+prototype. Connects to the [security-remediation-agent](https://github.com/Illusion0-0/security-remediation-agent)
+via HTTP to scan, remediate, validate, and raise PRs.
 
-## What Is Implemented
+## Features
 
-- FastAPI backend with queue-driven orchestration for concurrent runs
-- In-memory run store with events and run lifecycle state
-- User approval gate to start remediation after vulnerabilities are shown
-- UI prototype with 10 screens represented and interconnected
-- Live run polling and approval actions from the UI
-- ADK server integration via HTTP endpoints
+- **10-screen prototype UI** — Dashboard → Scan → Findings → Review → Approval → PR → Evidence
+- **Async orchestrator** — queue-driven workflow with concurrent workers
+- **Human approval gate** — vulnerabilities shown before remediation starts
+- **PDF executive summary** — downloadable evidence bundle
+- **Retry logic** — automatic re-remediation on validation failure
 
-## Project Structure
+## Quick Start
 
-- [backend/main.py](backend/main.py) - API and application setup
-- [backend/orchestrator.py](backend/orchestrator.py) - worker queue and orchestration lifecycle
-- [backend/models.py](backend/models.py) - typed models for runs, findings, proposals, and evidence
-- [backend/adk_agents/runner.py](backend/adk_agents/runner.py) - ADK server HTTP client for scan, remediate, validate, and report
-- [backend/adk_agents/agent.py](backend/adk_agents/agent.py) - ADK graph definitions and prompts
-- [frontend/index.html](frontend/index.html) - prototype UI shell
-- [frontend/app.js](frontend/app.js) - UI behavior and API integration
-- [frontend/styles.css](frontend/styles.css) - visual styling and responsive layout
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --only-binary :all: -r requirements.txt
 
-## Run Locally
+# Point at the agent server (Service B)
+$env:ADK_SERVER_URL = "http://127.0.0.1:8081"
 
-1. Create and activate a Python environment and run the below commands from the root folder.
-2. Install dependencies:
-
-```bash
-pip install -r requirements.txt
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn api_server:app --host 127.0.0.1 --port 8081
+# Start the app (port 8000)
+.\start_app.bat
 ```
 
-Set the ADK server integration variables:
+Open: http://127.0.0.1:8000
 
-```bash
-export ADK_SERVER_URL="http://127.0.0.1:8081"
-export ADK_SERVER_TIMEOUT_SECONDS="90"
-# Optional auth:
-# export ADK_SERVER_BEARER_TOKEN="<token>"
+## API Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/health` | Service health + queue status |
+| `POST /api/runs` | Create a new remediation run |
+| `GET /api/runs` | List all runs |
+| `GET /api/runs/{id}` | Get run detail |
+| `POST /api/runs/{id}/start-remediation` | User-approved remediation start |
+| `POST /api/runs/{id}/approvals/{proposal_id}` | Approve/reject a fix |
+| `GET /api/runs/{id}/executive-summary.pdf` | Download PDF evidence |
+| `GET /api/ui-map` | 10-screen interaction map |
+
+## Architecture
+
+```
+backend/main.py           <- FastAPI app + endpoints + PDF generation
+backend/orchestrator.py   <- Async worker queue + workflow state machine
+backend/models.py         <- Pydantic models (Run, Finding, Proposal, etc.)
+backend/store.py          <- In-memory run store
+backend/adk_agents/       <- HTTP client to the agent server
+frontend/                 <- HTML/JS/CSS 10-screen UI
 ```
 
-Start the server from this folder:
+## Workflow
 
-```bash
-uvicorn backend.main:app --reload --port 8000
+```
+Create Run → Scan → Show Findings → [User Approval]
+  → Plan Remediation → Apply Fixes → Validate (retry ×2)
+  → Generate Evidence → Complete
 ```
 
-Open:
+## Related Repositories
 
-- http://127.0.0.1:8000
-
-### API Highlights
-
-- POST /api/runs - Create a new remediation run
-- GET /api/runs - List all runs
-- GET /api/runs/{run_id} - Get run detail
-- POST /api/runs/{run_id}/start-remediation - User-approved remediation start
-- POST /api/runs/{run_id}/approvals/{proposal_id} - Approve or reject a low-confidence fix
-- GET /api/ui-map - Return the 10-screen interaction map
-
-### ADK Server Endpoints Required
-
-The ADK server configured by ADK_SERVER_URL must expose these POST endpoints:
-
-- /scan -> { findings: [...] }
-- /remediate/plan -> { proposals: [...] }
-- /remediate/apply -> { workspace_path, changed_files, changes, diff_excerpt, pull_request }
-- /validate -> { validations: [...] }
-- /report -> { evidence: {...}, summary: "..." }
-
-### Notes
-
-This service only orchestrates workflow state; the ADK server performs all scanning, fixing, validation, and report logic.
-
-If the ADK server is unreachable or returns invalid payloads, runs fail with explicit ADK endpoint errors.
+- [security-remediation-agent](https://github.com/Illusion0-0/security-remediation-agent) — The ADK agent (Service B)
+- [vulnerable-mono-repo](https://github.com/Illusion0-0/vulnerable-mono-repo) — Target repo with 29 CVEs
