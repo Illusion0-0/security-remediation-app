@@ -1,7 +1,7 @@
 # Deployable backend — runs both agent + app services in one container
 FROM python:3.11-slim
 
-# System deps: Java 21 (Debian Trixie only has 21, not 17), Maven, Git
+# System deps: Java 21, Maven, Git
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openjdk-21-jre-headless \
     maven \
@@ -22,8 +22,9 @@ WORKDIR /app
 COPY requirements.txt /app/application/requirements.txt
 RUN pip install --no-cache-dir --only-binary :all: -r /app/application/requirements.txt
 
-# Clone the agent repo
-RUN git clone --depth 1 https://github.com/Illusion0-0/security-remediation-agent.git /app/agent
+# Clone the agent repo — CACHE BUST: always pull latest by adding date arg
+ARG CACHEBUST=1
+RUN rm -rf /app/agent && git clone https://github.com/Illusion0-0/security-remediation-agent.git /app/agent
 
 # Copy the application code
 COPY . /app/application
