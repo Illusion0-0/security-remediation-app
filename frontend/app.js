@@ -100,9 +100,9 @@ function resetScanProgress() {
   state.activeScanRunId = null;
   scanProgressPanelEl.classList.add("hidden");
   scanProgressFillEl.style.width = "8%";
-  scanProgressTitleEl.textContent = "Scan in progress";
+  scanProgressTitleEl.textContent = "Scanning...";
   scanProgressPhaseEl.textContent = "queued";
-  scanProgressMessageEl.textContent = "Waiting for run to start.";
+  scanProgressMessageEl.textContent = "Waiting...";
   startScanButtonEl.disabled = false;
 }
 
@@ -192,10 +192,10 @@ function renderStats(runs) {
   const complete = runs.filter((r) => r.status === "completed").length;
 
   statsEl.innerHTML = `
-    <div class="stat"><div class="stat-value">${total}</div><div class="stat-label">Total Runs</div></div>
-    <div class="stat stat-critical"><div class="stat-value" style="color: var(--critical);">${critical}</div><div class="stat-label">Critical CVEs</div></div>
-    <div class="stat stat-warning"><div class="stat-value" style="color: var(--warning);">${waiting}</div><div class="stat-label">Need Approval</div></div>
-    <div class="stat stat-success"><div class="stat-value" style="color: var(--success);">${complete}</div><div class="stat-label">Completed</div></div>
+    <div class="stat"><div class="stat-num">${total}</div><div class="stat-label">Total Runs</div></div>
+    <div class="stat"><div class="stat-num" style="color: var(--critical);">${critical}</div><div class="stat-label">Critical</div></div>
+    <div class="stat"><div class="stat-num" style="color: var(--medium);">${waiting}</div><div class="stat-label">Pending</div></div>
+    <div class="stat"><div class="stat-num" style="color: var(--success);">${complete}</div><div class="stat-label">Done</div></div>
   `;
 }
 
@@ -203,38 +203,34 @@ function renderStats(runs) {
 function renderRuns(runs) {
   renderStats(runs);
   if (runs.length === 0) {
-    runsTableEl.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🛡️</div><p>No scans yet. Click <strong>+ New Scan</strong> to start.</p></div>`;
+    runsTableEl.innerHTML = `<div class="empty"><p>No scans yet. Click <strong>+ Scan</strong> to start.</p></div>`;
     return;
   }
 
   runsTableEl.innerHTML = runs.map((run) => {
     const findings = run.findings || [];
     const proposals = run.proposals || [];
-    const validations = run.validations || [];
     const critCount = findings.filter((f) => f.severity === "Critical").length;
     const highCount = findings.filter((f) => f.severity === "High").length;
     const lastEvent = run.events?.length ? run.events[run.events.length - 1].message : "No events";
 
     return `
-      <div class="run-card status-${run.status}" data-run-id="${run.id}">
-        <div class="run-card-header">
+      <div class="run-card" data-run-id="${run.id}">
+        <div class="run-card-head">
           <div class="run-card-title">${escapeHtml(shortRepo(run.repo_url))}</div>
           ${statusBadge(run.status)}
         </div>
-        <div class="run-card-meta">
-          <span class="muted">${escapeHtml(run.phase)}</span>
-          <span class="muted">· ${timeAgo(run.created_at)}</span>
-        </div>
-        <div class="muted text-sm" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(lastEvent)}</div>
+        <div class="muted" style="font-size: 0.76rem;">${escapeHtml(run.phase)} · ${timeAgo(run.created_at)}</div>
+        <div class="muted" style="font-size: 0.74rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.3rem;">${escapeHtml(lastEvent)}</div>
         <div class="run-card-stats">
-          <div class="run-stat"><span class="run-stat-num">${findings.length}</span><span class="run-stat-label">Findings</span></div>
-          <div class="run-stat"><span class="run-stat-num" style="color: var(--critical);">${critCount}</span><span class="run-stat-label">Critical</span></div>
-          <div class="run-stat"><span class="run-stat-num" style="color: var(--high);">${highCount}</span><span class="run-stat-label">High</span></div>
-          <div class="run-stat"><span class="run-stat-num">${proposals.length}</span><span class="run-stat-label">Fixes</span></div>
+          <div><span class="rcs-num">${findings.length}</span><div class="rcs-label">Findings</div></div>
+          <div><span class="rcs-num" style="color: var(--critical);">${critCount}</span><div class="rcs-label">Critical</div></div>
+          <div><span class="rcs-num" style="color: var(--high);">${highCount}</span><div class="rcs-label">High</div></div>
+          <div><span class="rcs-num">${proposals.length}</span><div class="rcs-label">Fixes</div></div>
         </div>
         <div class="run-card-actions">
-          <button class="secondary" data-open-run="${run.id}">View Details</button>
-          <a class="btn secondary" href="${API_BASE_URL}/api/runs/${run.id}/executive-summary.pdf?ngrok-skip-browser-warning=true" download>📄 Report</a>
+          <button class="slim" data-open-run="${run.id}">View</button>
+          <a class="btn slim" href="${API_BASE_URL}/api/runs/${run.id}/executive-summary.pdf" download>📄</a>
         </div>
       </div>
     `;
@@ -253,7 +249,7 @@ function proposalActions(runId, proposal) {
   if (proposal.approval_status !== "pending") {
     return `<span class="badge ${proposal.approval_status === "approved" ? "completed" : "failed"}">${proposal.approval_status}</span>`;
   }
-  return `<div class="flex gap-1 mt-1"><button class="success slim-button" onclick="decide('${runId}','${proposal.id}','approve')">✓ Approve</button><button class="reject slim-button" onclick="decide('${runId}','${proposal.id}','reject')">✕ Reject</button></div>`;
+  return `<div class="flex gap-sm mt"><button class="success slim" onclick="decide('${runId}','${proposal.id}','approve')">✓ Approve</button><button class="reject slim" onclick="decide('${runId}','${proposal.id}','reject')">✕ Reject</button></div>`;
 }
 
 async function decide(runId, proposalId, decision) {
@@ -270,7 +266,7 @@ async function startRemediation(runId) {
   openRemediationModal();
   remediationProgressPhaseEl.textContent = "remediation_requested";
   remediationProgressMessageEl.textContent = "Submitting remediation request.";
-  remediationCommentaryEl.textContent = "User approved remediation. Waiting for agent pipeline to begin.";
+  remediationCommentaryEl.textContent = "User approved remediation.";
   const run = await fetchJson(`/api/runs/${runId}/start-remediation`, { method: "POST" });
   state.activeRemediationRunId = run.id;
   updateRemediationProgress(run);
@@ -283,15 +279,14 @@ function renderRunDetail(run) {
   hintEl.style.display = "none";
   const validationByProposal = new Map((run.validations || []).map((v) => [v.proposal_id, v]));
 
-  // Findings
   const findingsHtml = (run.findings || []).map((f) => `
     <div class="vuln-row">
       <div class="vuln-info">
         <div class="vuln-name">${escapeHtml(f.dependency)}</div>
         <div class="vuln-detail">
-          <span class="vuln-version">${escapeHtml(f.current_version)}</span>
+          <span class="mono">${escapeHtml(f.current_version)}</span>
           <span class="vuln-arrow">→</span>
-          <span class="vuln-fixed">${escapeHtml((f.recommended_versions || [])[0] || f.fixed_version || "?")}</span>
+          <span class="mono" style="color: var(--success);">${escapeHtml((f.recommended_versions || [])[0] || f.fixed_version || "?")}</span>
           <span>${escapeHtml(f.cve)}</span>
         </div>
       </div>
@@ -299,125 +294,82 @@ function renderRunDetail(run) {
     </div>
   `).join("");
 
-  // Proposals
   const proposalsHtml = (run.proposals || []).map((p) => {
     const val = validationByProposal.get(p.id);
     const valStatus = val ? (val.passed ? '<span class="badge completed">✓ Validated</span>' : '<span class="badge failed">✕ Failed</span>') : '<span class="badge queued">Pending</span>';
     return `
       <div class="vuln-row" style="flex-direction: column; align-items: stretch;">
-        <div class="flex-between">
+        <div class="between">
           <div class="vuln-info">
             <div class="vuln-name">${escapeHtml(p.dependency)}</div>
             <div class="vuln-detail">
-              <span class="vuln-version">${escapeHtml(p.from_version)}</span>
+              <span class="mono">${escapeHtml(p.from_version)}</span>
               <span class="vuln-arrow">→</span>
-              <span class="vuln-fixed">${escapeHtml(p.to_version)}</span>
-              <span class="badge" style="background: var(--bg-elev); color: var(--ink-secondary);">conf ${(p.confidence_score * 100).toFixed(0)}%</span>
+              <span class="mono" style="color: var(--success);">${escapeHtml(p.to_version)}</span>
             </div>
           </div>
           ${valStatus}
         </div>
-        ${p.reasoning ? `<div class="muted text-sm mt-1">${escapeHtml(p.reasoning)}</div>` : ""}
+        ${p.reasoning ? `<div class="muted" style="font-size: 0.76rem; margin-top: 0.3rem;">${escapeHtml(p.reasoning)}</div>` : ""}
         ${proposalActions(run.id, p)}
       </div>
     `;
   }).join("");
 
-  // Events
   const eventsHtml = (run.events || []).slice(-10).map((e) => {
     const icon = e.level === "error" ? "❌" : e.level === "warn" ? "⚠️" : "ℹ️";
-    return `<div class="text-sm" style="padding: 0.3rem 0; border-bottom: 1px solid var(--border-soft);">${icon} <span class="text-mono" style="color: var(--ink-muted);">${escapeHtml(e.message)}</span></div>`;
+    return `<div style="font-size: 0.76rem; padding: 0.25rem 0; border-bottom: 1px solid var(--border);">${icon} <span class="mono muted">${escapeHtml(e.message)}</span></div>`;
   }).join("");
 
-  // Evidence
   const evidenceHtml = run.evidence ? `
     <div class="vuln-row"><div class="vuln-info"><div class="vuln-name">Evidence Summary</div><div class="vuln-detail">${escapeHtml(run.evidence.summary)}</div></div></div>
-    <div class="muted text-sm mt-1">Export links: ${escapeHtml((run.evidence.export_links || []).join(" | "))}</div>
+    <div class="muted" style="font-size: 0.76rem; margin-top: 0.3rem;">Export links: ${escapeHtml((run.evidence.export_links || []).join(" | "))}</div>
   ` : '<p class="muted">Evidence pending...</p>';
 
-  // Validation
   const validationHtml = (run.validations || []).map((v) => `
     <div class="vuln-row">
       <div class="vuln-info">
         <div class="vuln-name">${escapeHtml(v.proposal_id.slice(0, 8))}...</div>
-        <div class="vuln-detail">
-          Build: ${v.build_ok ? "✅" : "❌"} · Tests: ${v.tests_ok ? "✅" : "❌"} · Startup: ${v.startup_ok ? "✅" : "❌"}
-        </div>
+        <div class="vuln-detail">Build: ${v.build_ok ? "✅" : "❌"} · Tests: ${v.tests_ok ? "✅" : "❌"} · Startup: ${v.startup_ok ? "✅" : "❌"}</div>
       </div>
       ${v.passed ? '<span class="badge completed">✓ Passed</span>' : '<span class="badge failed">✕ Failed</span>'}
     </div>
   `).join("");
 
-  // PR
   const pr = run.pull_request || {};
   const prHtml = pr.url
     ? `<div class="vuln-row"><div class="vuln-info"><div class="vuln-name">Pull Request</div><div class="vuln-detail"><a href="${escapeHtml(pr.url)}" target="_blank" style="color: var(--accent);">${escapeHtml(pr.url)}</a></div></div><span class="badge ${pr.status === "created" ? "completed" : "queued"}">${escapeHtml(pr.status)}</span></div>`
     : `<div class="vuln-row"><div class="vuln-info"><div class="vuln-name">Pull Request</div><div class="vuln-detail">${escapeHtml(pr.reason || pr.status || "Not created")}</div></div></div>`;
 
-  // Remediation
   const rem = run.remediation_summary || {};
   const changesHtml = (rem.changes || []).map((c) => `
     <div class="vuln-row">
       <div class="vuln-info">
         <div class="vuln-name">${escapeHtml(c.dependency)}</div>
-        <div class="vuln-detail">
-          <span class="vuln-version">${escapeHtml(c.old_version || "(none)")}</span>
-          <span class="vuln-arrow">→</span>
-          <span class="vuln-fixed">${escapeHtml(c.new_version)}</span>
-          <span>${escapeHtml(c.file_path || "")}</span>
-        </div>
+        <div class="vuln-detail"><span class="mono">${escapeHtml(c.old_version || "(none)")}</span><span class="vuln-arrow">→</span><span class="mono" style="color: var(--success);">${escapeHtml(c.new_version)}</span></div>
       </div>
     </div>
   `).join("");
 
-  const diffHtml = rem.diff_excerpt ? `<pre>${escapeHtml(rem.diff_excerpt)}</pre>` : "";
-
-  // Approval gate
   const gate = (run.phase === "awaiting_remediation_start" && (run.findings || []).length > 0 && !run.remediation_requested)
-    ? `<div class="detail-section" style="border-color: var(--warning); background: var(--warning-bg);"><h3 style="color: var(--warning);">⚠️ User Action Required</h3><p class="muted mb-1">Review the vulnerabilities below and approve remediation to proceed.</p><button onclick="startRemediation('${run.id}')">▶ Start Remediation</button></div>`
+    ? `<div class="section" style="border-color: var(--medium); background: rgba(202,138,4,0.05);"><h3 style="color: var(--medium);">⚠️ User Action Required</h3><p class="muted mb">Review vulnerabilities and approve remediation.</p><button class="btn-primary" onclick="startRemediation('${run.id}')">▶ Start Remediation</button></div>`
     : "";
 
-  // Render
   detailEl.innerHTML = `
-    <div class="flex-between mb-1">
-      <div class="flex gap-1">${statusBadge(run.status)}<span class="badge queued">${escapeHtml(run.phase)}</span></div>
-      <span class="muted text-sm">${escapeHtml(run.id.slice(0, 8))}</span>
+    <div class="between mb">
+      <div class="flex gap-sm">${statusBadge(run.status)}<span class="badge queued">${escapeHtml(run.phase)}</span></div>
+      <span class="muted" style="font-size: 0.78rem;">${escapeHtml(run.id.slice(0, 8))}</span>
     </div>
-    <div class="muted text-sm mb-1">Repository: <span class="text-mono">${escapeHtml(run.repo_url)}</span></div>
+    <div class="muted" style="font-size: 0.78rem; margin-bottom: 0.5rem;">Repo: <span class="mono">${escapeHtml(run.repo_url)}</span></div>
     ${gate}
-    <div class="detail-grid mt-2">
-      <div class="detail-section">
-        <h3>🔒 Vulnerabilities Found (${(run.findings || []).length})</h3>
-        ${findingsHtml || '<div class="empty-state"><p>No vulnerabilities detected. 🎉</p></div>'}
-      </div>
-      <div class="detail-section">
-        <h3>🔧 Remediation Proposals (${(run.proposals || []).length})</h3>
-        ${proposalsHtml || '<div class="empty-state"><p>No proposals yet.</p></div>'}
-      </div>
-      ${(rem.changes || []).length ? `
-      <div class="detail-section">
-        <h3>📝 Applied Changes (${(rem.changes || []).length})</h3>
-        ${changesHtml}
-        ${diffHtml}
-      </div>` : ""}
-      ${(run.validations || []).length ? `
-      <div class="detail-section">
-        <h3>✅ Validation Results (${(run.validations || []).length})</h3>
-        ${validationHtml}
-      </div>` : ""}
-      <div class="detail-section">
-        <h3>🔀 Pull Request</h3>
-        ${prHtml}
-      </div>
-      <div class="detail-section">
-        <h3>📋 Evidence & Report</h3>
-        ${evidenceHtml}
-      </div>
-      ${(run.events || []).length ? `
-      <div class="detail-section">
-        <h3>📜 Activity Log</h3>
-        ${eventsHtml}
-      </div>` : ""}
+    <div class="mt">
+      <div class="section"><h3>🔒 Vulnerabilities (${(run.findings || []).length})</h3>${findingsHtml || '<div class="empty"><p>No vulnerabilities detected. 🎉</p></div>'}</div>
+      <div class="section"><h3>🔧 Proposals (${(run.proposals || []).length})</h3>${proposalsHtml || '<div class="empty"><p>No proposals yet.</p></div>'}</div>
+      ${(rem.changes || []).length ? `<div class="section"><h3>📝 Applied Changes (${(rem.changes || []).length})</h3>${changesHtml}</div>` : ""}
+      ${(run.validations || []).length ? `<div class="section"><h3>✅ Validation (${(run.validations || []).length})</h3>${validationHtml}</div>` : ""}
+      <div class="section"><h3>🔀 Pull Request</h3>${prHtml}</div>
+      <div class="section"><h3>📋 Evidence</h3>${evidenceHtml}</div>
+      ${(run.events || []).length ? `<div class="section"><h3>📜 Activity Log</h3>${eventsHtml}</div>` : ""}
     </div>
   `;
 }
@@ -471,11 +423,17 @@ async function init() {
   closeRemediationModal();
   await loadRuns();
   setInterval(async () => {
-    await loadRuns();
-    if (state.currentPage === "run-detail") await loadRunDetail();
-    await monitorActiveScan();
-    await monitorActiveRemediation();
-  }, 2500);
+    try {
+      await loadRuns();
+      if (state.currentPage === "run-detail") await loadRunDetail();
+      await monitorActiveScan();
+      await monitorActiveRemediation();
+    } catch (e) { /* silent poll errors */ }
+  }, 3000);
 }
 
-init().catch((error) => { console.error(error); alert("Failed to initialize UI. Check backend logs."); });
+init().catch((error) => {
+  console.error("Init failed:", error);
+  statsEl.innerHTML = "";
+  runsTableEl.innerHTML = `<div class="empty"><p style="color: var(--danger);">⚠️ Backend connection failed</p><p class="muted" style="font-size: 0.8rem; margin-top: 0.5rem;">${escapeHtml(error.message || error)}</p><p class="muted" style="font-size: 0.76rem; margin-top: 0.5rem;">API_BASE_URL: <code class="mono">${escapeHtml(API_BASE_URL || "(same-origin)")}</code></p><button class="btn-primary mt" onclick="location.reload()">Retry</button></div>`;
+});
