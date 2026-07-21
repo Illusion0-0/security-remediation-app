@@ -37,7 +37,11 @@ const remediationCommentaryEl = $("remediation-commentary");
 
 // ---- API helper ----
 async function fetchJson(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, options);
+  const headers = { ...(options.headers || {}) };
+  if (API_BASE_URL && API_BASE_URL.includes("ngrok")) {
+    headers["ngrok-skip-browser-warning"] = "true";
+  }
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
   if (!response.ok) throw new Error(`Request failed (${response.status})`);
   return response.json();
 }
@@ -230,7 +234,7 @@ function renderRuns(runs) {
         </div>
         <div class="run-card-actions">
           <button class="secondary" data-open-run="${run.id}">View Details</button>
-          <a class="btn secondary" href="${API_BASE_URL}/api/runs/${run.id}/executive-summary.pdf" download>📄 Report</a>
+          <a class="btn secondary" href="${API_BASE_URL}/api/runs/${run.id}/executive-summary.pdf?ngrok-skip-browser-warning=true" download>📄 Report</a>
         </div>
       </div>
     `;

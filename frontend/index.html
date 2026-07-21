@@ -6,13 +6,13 @@
   <title>SecureRemediate</title>
   <link rel="stylesheet" href="/styles.css" />
   <script>
-    window.API_BASE_URL = localStorage.getItem("API_BASE_URL") || "";
+    window.API_BASE_URL = "https://bamboo-passerine-twiddling.ngrok-free.dev";
   </script>
 </head>
 <body>
   <nav class="nav">
     <div class="nav-brand">
-      <div class="nav-brand-dot">◈</div>
+      <div class="nav-dot">◈</div>
       <span>SecureRemediate</span>
     </div>
     <div class="nav-actions">
@@ -80,10 +80,10 @@
       </div>
       <div class="progress-track"><div class="progress-fill" id="remediation-progress-fill" style="width: 10%;"></div></div>
       <p class="muted" id="remediation-progress-message" style="font-size: 0.78rem;"></p>
-      <div id="remediation-commentary" class="mono" style="margin-top: 0.75rem; padding: 0.75rem; background: rgba(0,0,0,0.3); border-radius: 10px; border: 1px solid var(--glass-border); font-size: 0.72rem; color: var(--text-dim); max-height: 160px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5;"></div>
+      <div id="remediation-commentary" style="margin-top: 0.75rem; padding: 0.75rem; background: rgba(0,0,0,0.03); border-radius: 10px; border: 1px solid var(--border); font-size: 0.72rem; color: var(--text-dim); max-height: 160px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5; font-family: 'SF Mono', monospace;"></div>
     </div>
   </div>
 
-  <script src="/app.js?v=2"></script>
+  <script src="/app.js?v=3"></script>
 </body>
 </html>

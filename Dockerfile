@@ -1,21 +1,14 @@
 # Deployable backend — runs both agent + app services in one container
-# Build from the security-remediation-app repo; clones the agent repo during build.
-#
-# Deploy to Railway:
-#   railway up  (from this repo)
-#
-# Environment variables to set in Railway:
-#   ANTHROPIC_API_KEY = sk-ant-...  (or GOOGLE_API_KEY / ZHIPUAI_API_KEY)
-#   GH_TOKEN = ghp_...              (for PR creation)
-#   SCANNER_BACKEND = static        (offline CVE scanner)
-#
-# The PORT env var is set automatically by Railway.
-
 FROM python:3.11-slim
 
 # System deps: Java 17, Maven, Git
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    openjdk-17-jdk-headless maven git curl procps bash \
+    openjdk-17-jre-headless \
+    maven \
+    git \
+    curl \
+    procps \
+    bash \
     && rm -rf /var/lib/apt/lists/*
 
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
@@ -29,7 +22,7 @@ WORKDIR /app
 COPY requirements.txt /app/application/requirements.txt
 RUN pip install --no-cache-dir --only-binary :all: -r /app/application/requirements.txt
 
-# Clone the agent repo (our own fork)
+# Clone the agent repo
 RUN git clone --depth 1 https://github.com/Illusion0-0/security-remediation-agent.git /app/agent
 
 # Copy the application code
