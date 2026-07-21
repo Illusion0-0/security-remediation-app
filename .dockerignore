@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.adk_artifacts/
+*.log
+.env
+_*.py
+SETUP.md
+start_app.bat
