@@ -3,97 +3,105 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Agentic Dependency Remediation Prototype</title>
+  <title>Secure Remediation — AI-Assisted Software Security</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/styles.css" />
   <script>
-    window.API_BASE_URL = "http://127.0.0.1:8010";
+    // Same-origin by default; override via localStorage if agent runs on different host
+    window.API_BASE_URL = localStorage.getItem("API_BASE_URL") || "";
   </script>
 </head>
 <body>
   <header class="hero">
     <div class="hero-left">
-      <button id="open-scan-modal" class="hero-action">New Scan</button>
-      <button id="home-button" class="hero-action secondary">Home</button>
+      <div class="logo">
+        <div class="logo-icon">🛡️</div>
+        <span>SecureRemediate</span>
+      </div>
+      <button id="open-scan-modal" class="hero-action">+ New Scan</button>
+      <button id="home-button" class="hero-action secondary">Dashboard</button>
     </div>
     <div class="hero-copy">
-      <h1>Agentic Dependency Remediation</h1>
-      <p>Hackathon prototype: scan, remediate, score confidence, validate, and evidence</p>
+      <h1>AI-Assisted Secure Software Development</h1>
+      <p>Multi-language · Java · Python · Node.js · Hackathon 2026</p>
     </div>
   </header>
 
   <main class="layout">
+    <!-- ===== DASHBOARD ===== -->
     <section class="page active" id="dashboard-page">
-      <div class="card dashboard-card" id="dashboard">
-        <div class="page-head">
-          <h2>Dashboard</h2>
+      <div class="card">
+        <div class="card-header">
+          <h2>📊 Dashboard</h2>
+          <button id="refresh-runs" class="secondary slim-button">↻ Refresh</button>
         </div>
         <div class="stats" id="stats"></div>
-        <div class="toolbar-row">
-          <button id="refresh-runs">Refresh Runs</button>
-        </div>
         <div id="runs-table" class="runs-grid"></div>
       </div>
     </section>
 
+    <!-- ===== RUN DETAIL ===== -->
     <section class="page" id="run-detail-page">
-      <div class="card detail-card" id="run-detail">
-        <div class="page-head">
-          <h2>Run Detail</h2>
-          <button id="run-detail-home" class="secondary slim-button">Home</button>
+      <div class="card">
+        <div class="card-header">
+          <h2>🔍 Run Detail</h2>
+          <button id="run-detail-home" class="secondary slim-button">← Back</button>
         </div>
-        <p id="selected-run-hint">Select a run from dashboard to view details.</p>
+        <p id="selected-run-hint" class="muted">Select a run from the dashboard to view details.</p>
         <div id="run-detail-body"></div>
       </div>
     </section>
   </main>
 
+  <!-- ===== NEW SCAN MODAL ===== -->
   <div class="modal-shell hidden" id="scan-modal-shell">
     <div class="modal-backdrop" id="scan-modal-backdrop"></div>
     <div class="modal-card">
-      <div class="page-head">
-        <h2>New Scan</h2>
-        <button id="close-scan-modal" class="secondary slim-button">Close</button>
+      <div class="card-header">
+        <h2>🚀 New Vulnerability Scan</h2>
+        <button id="close-scan-modal" class="secondary slim-button">✕</button>
       </div>
       <form id="scan-form">
-        <label for="repo-url">Repository URL</label>
-        <input id="repo-url" required placeholder="https://github.com/org/repo" />
+        <label for="repo-url">Repository URL or Local Path</label>
+        <input id="repo-url" required placeholder="https://github.com/Illusion0-0/vulnerable-mono-repo" />
         <label for="requested-by">Requested By</label>
         <input id="requested-by" value="hackathon-user" />
-        <button type="submit" id="start-scan-button">Start Scan</button>
+        <button type="submit" id="start-scan-button" style="margin-top: 1.25rem;">▶ Start Scan</button>
       </form>
-      <div class="scan-progress hidden" id="scan-progress-panel">
-        <div class="progress-meta">
+      <div class="scan-progress hidden" id="scan-progress-panel" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+        <div class="flex-between">
           <strong id="scan-progress-title">Scan in progress</strong>
-          <span class="muted" id="scan-progress-phase">queued</span>
+          <span class="badge running" id="scan-progress-phase">queued</span>
         </div>
         <div class="progress-bar-track">
-          <div class="progress-bar-fill" id="scan-progress-fill"></div>
+          <div class="progress-bar-fill" id="scan-progress-fill" style="width: 8%;"></div>
         </div>
         <p class="muted" id="scan-progress-message">Waiting for run to start.</p>
       </div>
     </div>
   </div>
 
+  <!-- ===== REMEDIATION PROGRESS MODAL ===== -->
   <div class="modal-shell hidden" id="remediation-modal-shell">
     <div class="modal-backdrop"></div>
     <div class="modal-card">
-      <div class="page-head">
-        <h2>Remediation Progress</h2>
+      <div class="card-header">
+        <h2>🔧 Remediation in Progress</h2>
       </div>
-      <div class="scan-progress" id="remediation-progress-panel">
-        <div class="progress-meta">
-          <strong id="remediation-progress-title">Remediation in progress</strong>
-          <span class="muted" id="remediation-progress-phase">remediation_requested</span>
-        </div>
-        <div class="progress-bar-track">
-          <div class="progress-bar-fill" id="remediation-progress-fill"></div>
-        </div>
-        <p class="muted" id="remediation-progress-message">Waiting for remediation to start.</p>
-        <div class="progress-commentary muted" id="remediation-commentary"></div>
+      <div class="flex-between">
+        <strong id="remediation-progress-title">Applying fixes...</strong>
+        <span class="badge running" id="remediation-progress-phase">remediation_requested</span>
       </div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="remediation-progress-fill" style="width: 10%;"></div>
+      </div>
+      <p class="muted" id="remediation-progress-message">Waiting for remediation to start.</p>
+      <div class="mt-2" style="padding: 0.8rem; background: var(--bg-deep); border-radius: var(--radius-sm); border: 1px solid var(--border); line-height: 1.5; white-space: pre-wrap; font-size: 0.8rem; color: var(--ink-muted); max-height: 200px; overflow-y: auto;" id="remediation-commentary"></div>
     </div>
   </div>
 
-  <script src="/app.js?v=20260719-2"></script>
+  <script src="/app.js?v=20260721"></script>
 </body>
 </html>

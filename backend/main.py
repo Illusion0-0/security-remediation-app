@@ -166,6 +166,157 @@ def _build_pdf_bytes(lines: list[str]) -> bytes:
     )
     return bytes(buffer)
 
+
+
+# Severity -> RGB color tuple for PDF
+SEVERITY_COLORS = {
+    "Critical": (0.8, 0.1, 0.1),
+    "High": (0.9, 0.4, 0.1),
+    "Medium": (0.8, 0.7, 0.1),
+    "Low": (0.2, 0.7, 0.3),
+}
+
+
+def _build_pdf_content(run: RunRecord) -> list[dict]:
+    """Build structured PDF content with sections, colors, and formatting."""
+    items: list[dict] = []
+    sev_counts = {}
+    for f in run.findings:
+        sev_counts[f.severity.value] = sev_counts.get(f.severity.value, 0) + 1
+
+    items.append({"text": "SECURITY REMEDIATION REPORT", "font": "bold", "size": 18, "color": (0.1, 0.2, 0.5), "gap_after": 6})
+    items.append({"text": "AI-Assisted Secure Software Development - Hackathon 2026", "font": "reg", "size": 9, "color": (0.4, 0.4, 0.4), "gap_after": 14})
+    items.append({"text": "RUN SUMMARY", "font": "bold", "size": 11, "color": (0.2, 0.2, 0.2), "gap_after": 4})
+    items.append({"text": f"  Run ID:          {run.id}", "font": "mono", "size": 9, "color": (0.3, 0.3, 0.3), "gap_after": 1})
+    items.append({"text": f"  Repository:      {run.repo_url}", "font": "mono", "size": 9, "color": (0.3, 0.3, 0.3), "gap_after": 1})
+    items.append({"text": f"  Status:          {run.status.value}", "font": "reg", "size": 9, "color": (0.3, 0.3, 0.3), "gap_after": 1})
+    items.append({"text": f"  Phase:           {run.phase}", "font": "reg", "size": 9, "color": (0.3, 0.3, 0.3), "gap_after": 1})
+    items.append({"text": f"  Requested By:    {run.requested_by}", "font": "reg", "size": 9, "color": (0.3, 0.3, 0.3), "gap_after": 10})
+    items.append({"text": "VULNERABILITY SUMMARY", "font": "bold", "size": 11, "color": (0.2, 0.2, 0.2), "gap_after": 4})
+    for sev in ["Critical", "High", "Medium", "Low"]:
+        count = sev_counts.get(sev, 0)
+        color = SEVERITY_COLORS.get(sev, (0.3, 0.3, 0.3))
+        bar = "|" * min(count, 40)
+        items.append({"text": f"  [{sev:8s}]  {count:>3d}  {bar}", "font": "mono", "size": 9, "color": color, "gap_after": 2})
+    items.append({"text": f"  {'TOTAL':8s}  {len(run.findings):>3d}", "font": "bold", "size": 9, "color": (0.1, 0.1, 0.1), "gap_after": 10})
+
+    if run.findings:
+        items.append({"text": "DETAILED FINDINGS (Top 15)", "font": "bold", "size": 11, "color": (0.2, 0.2, 0.2), "gap_after": 4})
+        for finding in run.findings[:15]:
+            sev = finding.severity.value
+            color = SEVERITY_COLORS.get(sev, (0.3, 0.3, 0.3))
+            rec = (finding.recommended_versions[:1] or ["?"])[0]
+            dep = finding.dependency[:38]
+            items.append({"text": f"  [{sev[:4]}] {finding.cve:<16s} {dep:<38s} {finding.current_version[:10]:>10s} -> {rec[:10]}", "font": "mono", "size": 8, "color": color, "gap_after": 1})
+        items.append({"text": "", "font": "reg", "size": 9, "color": (0, 0, 0), "gap_after": 10})
+
+    if run.remediation_summary.changes:
+        items.append({"text": "REMEDIATION CHANGES", "font": "bold", "size": 11, "color": (0.2, 0.2, 0.2), "gap_after": 4})
+        for change in run.remediation_summary.changes[:15]:
+            dep = change.dependency[:35]
+            items.append({"text": f"  {dep:<35s} {change.old_version or '?':<12s} -> {change.new_version:<12s}", "font": "mono", "size": 8, "color": (0.2, 0.6, 0.2), "gap_after": 1})
+        items.append({"text": "", "font": "reg", "size": 9, "color": (0, 0, 0), "gap_after": 10})
+
+    pr = run.pull_request
+    items.append({"text": "PULL REQUEST", "font": "bold", "size": 11, "color": (0.2, 0.2, 0.2), "gap_after": 4})
+    items.append({"text": f"  Status:  {pr.status}", "font": "reg", "size": 9, "color": (0.3, 0.3, 0.3), "gap_after": 1})
+    if pr.url:
+        items.append({"text": f"  URL:     {pr.url[:80]}", "font": "mono", "size": 8, "color": (0.1, 0.3, 0.7), "gap_after": 10})
+    else:
+        items.append({"text": "", "font": "reg", "size": 9, "color": (0, 0, 0), "gap_after": 10})
+
+    if run.evidence and run.evidence.summary:
+        items.append({"text": "EVIDENCE SUMMARY", "font": "bold", "size": 11, "color": (0.2, 0.2, 0.2), "gap_after": 4})
+        items.append({"text": f"  {run.evidence.summary}", "font": "reg", "size": 9, "color": (0.3, 0.3, 0.3), "gap_after": 10})
+
+    if run.events:
+        items.append({"text": "ACTIVITY LOG (Last 12)", "font": "bold", "size": 11, "color": (0.2, 0.2, 0.2), "gap_after": 4})
+        for event in run.events[-12:]:
+            icon = {"error": "[ERR]", "warn": "[WRN]", "info": "[INF]"}.get(event.level, "[---]")
+            color = (0.8, 0.1, 0.1) if event.level == "error" else (0.7, 0.5, 0.1) if event.level == "warn" else (0.3, 0.3, 0.3)
+            items.append({"text": f"  {icon} {event.message[:100]}", "font": "mono", "size": 7.5, "color": color, "gap_after": 1})
+
+    return items
+
+
+def _build_pdf_bytes_from_content(items: list[dict]) -> bytes:
+    """Build a multi-font, colored PDF from structured content items."""
+    page_width = 612
+    page_height = 792
+    left_margin = 50
+    right_margin = 50
+    top_margin = 56
+    bottom_margin = 50
+
+    def _rgb_to_pdf(rgb):
+        return f"{rgb[0]:.2f} {rgb[1]:.2f} {rgb[2]:.2f}"
+
+    rendered: list[dict] = []
+    y = page_height - top_margin
+    for item in items:
+        size = item.get("size", 10)
+        lh = size * 1.35
+        char_width = max(0.5, size * 0.55)
+        max_chars = max(1, int((page_width - left_margin - right_margin) / char_width))
+        for wrapped_line in _wrap_text(item["text"], max_chars):
+            y -= lh
+            if y < bottom_margin:
+                rendered.append({"_page_break": True})
+                y = page_height - top_margin - lh
+            rendered.append({**item, "text": wrapped_line, "y": y})
+        y -= item.get("gap_after", 0)
+
+    pages: list[list[dict]] = [[]]
+    for r in rendered:
+        if r.get("_page_break"):
+            pages.append([])
+        else:
+            pages[-1].append(r)
+    if not pages[0]:
+        pages = [[]]
+
+    objects: list[bytes] = []
+    objects.append(b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n")
+
+    first_page_obj = 5
+    page_objs = [first_page_obj + i * 2 for i in range(len(pages))]
+    content_objs = [p + 1 for p in page_objs]
+    kids = " ".join(f"{p} 0 R" for p in page_objs)
+    objects.append(f"2 0 obj << /Type /Pages /Kids [{kids}] /Count {len(page_objs)} >> endobj\n".encode("utf-8"))
+    objects.append(b"3 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n")
+    objects.append(b"4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> endobj\n")
+
+    font_map = {"bold": "F2", "reg": "F1", "mono": "F3"}
+
+    for page_lines, page_obj_num, content_obj_num in zip(pages, page_objs, content_objs):
+        resources = "<< /Font << /F1 3 0 R /F2 4 0 R >> >>"
+        objects.append(f"{page_obj_num} 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 {page_width} {page_height}] /Resources {resources} /Contents {content_obj_num} 0 R >> endobj\n".encode("utf-8"))
+        content_rows = ["BT"]
+        for item in page_lines:
+            font = font_map.get(item.get("font", "reg"), "F1")
+            size = item.get("size", 10)
+            color = _rgb_to_pdf(item.get("color", (0, 0, 0)))
+            content_rows.append(f"{color} rg")
+            content_rows.append(f"/{font} {size} Tf")
+            content_rows.append(f"{left_margin} {item['y']:.1f} Td")
+            content_rows.append(f"({_pdf_escape(item['text'])}) Tj")
+        content_rows.append("ET")
+        stream = "\n".join(content_rows).encode("utf-8")
+        objects.append(f"{content_obj_num} 0 obj << /Length {len(stream)} >> stream\n".encode("utf-8") + stream + b"\nendstream endobj\n")
+
+    buffer = bytearray(b"%PDF-1.4\n")
+    offsets = [0]
+    for obj in objects:
+        offsets.append(len(buffer))
+        buffer.extend(obj)
+    xref_offset = len(buffer)
+    buffer.extend(f"xref\n0 {len(offsets)}\n".encode("utf-8"))
+    buffer.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        buffer.extend(f"{offset:010d} 00000 n \n".encode("utf-8"))
+    buffer.extend(f"trailer << /Size {len(offsets)} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n".encode("utf-8"))
+    return bytes(buffer)
+
 @app.on_event("startup")
 async def startup() -> None:
     await orchestrator.start()
@@ -286,7 +437,7 @@ async def executive_summary_pdf(run_id: str) -> Response:
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    pdf_bytes = _build_pdf_bytes(_build_executive_summary_lines(run))
+    pdf_bytes = _build_pdf_bytes_from_content(_build_pdf_content(run)) if "SEVERITY_COLORS" in dir() else _build_pdf_bytes(_build_executive_summary_lines(run))
     headers = {
         "Content-Disposition": f'attachment; filename="executive-summary-{run.id}.pdf"',
     }
