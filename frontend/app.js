@@ -53,7 +53,7 @@ function shortRepo(u) { if(!u) return "unknown"; if(u.startsWith("http")){const 
 
 function showPage(p) { state.currentPage=p; dashboardPageEl.classList.toggle("active",p==="dashboard"); runDetailPageEl.classList.toggle("active",p==="run-detail"); }
 function goHome() { showPage("dashboard"); }
-function openRun(id) { state.selectedRunId=id; showPage("run-detail"); loadRunDetail(); }
+function openRun(id) { state.selectedRunId=id; lastRunHash=""; showPage("run-detail"); loadRunDetail(); }
 function openScanModal() { scanModalShellEl.classList.remove("hidden"); }
 function resetScanProgress() { state.activeScanRunId=null; scanProgressPanelEl.classList.add("hidden"); scanProgressFillEl.style.width="8%"; scanProgressPhaseEl.textContent="queued"; scanProgressMessageEl.textContent="Waiting..."; startScanButtonEl.disabled=false; }
 function closeScanModal() { if(state.activeScanRunId) return; scanModalShellEl.classList.add("hidden"); scanFormEl.reset(); $("requested-by").value="hackathon-user"; resetScanProgress(); }
@@ -280,70 +280,116 @@ function pdfBtn(runId, tab) {
   return `<div style="text-align:right;margin-bottom:0.5rem;"><button class="btn-primary slim" onclick="window.print()">📄 Download PDF</button></div>`;
 }
 
-// Tab 4: Code Fix (Side-by-side GitHub-style diff)
-function renderCodeFixTab(rem) {
-  const diff = rem.diff_excerpt || "";
-  const fixes = rem.changes || [];
-  if (!diff && !fixes.length) {
-    // Show applied fixes from breaking_change_checker
-    const changedFiles = rem.changed_files || [];
-    if (changedFiles.length) {
-      return `
-        ${pdfBtn()}
-        <div class="section">
-          <h3>🔧 Code Files Modified</h3>
-          <p class="muted" style="margin-bottom:0.75rem;">The following source files were automatically fixed to resolve breaking changes:</p>
-          ${changedFiles.map(f => `<div class="vuln-row"><div class="vuln-info"><div class="vuln-name mono">${escapeHtml(f)}</div><div class="vuln-detail">Auto-fixed: int → long (Commons IO 2.7 breaking change)</div></div><span class="badge completed">✅ Fixed</span></div>`).join("")}
-        </div>`;
-    }
-    return `<div class="empty"><p>No code fixes needed.</p></div>`;
-  }
-  
-  // Parse diff into side-by-side rows
-  const lines = diff.split("\n").slice(0, 150);
+// Helper: parse a single file's diff lines into paired rows
+function parseDiffToFileRows(diffLines) {
   const leftLines = [];
   const rightLines = [];
-  
-  for (const line of lines) {
-    if (line.startsWith("diff ") || line.startsWith("index ") || line.startsWith("---") || line.startsWith("+++")) {
-      continue; // Skip diff headers
-    }
-    if (line.startsWith("-")) {
+  for (const line of diffLines) {
+    if (line.startsWith("@@")) continue;
+    if (line.startsWith("-") && !line.startsWith("---")) {
       leftLines.push({ num: leftLines.length + 1, content: line.substring(1), type: "del" });
-    } else if (line.startsWith("+")) {
+    } else if (line.startsWith("+") && !line.startsWith("+++")) {
       rightLines.push({ num: rightLines.length + 1, content: line.substring(1), type: "add" });
-    } else {
-      const ctx = line.startsWith(" ") ? line.substring(1) : line;
+    } else if (line.startsWith(" ")) {
+      const ctx = line.substring(1);
       leftLines.push({ num: leftLines.length + 1, content: ctx, type: "ctx" });
       rightLines.push({ num: rightLines.length + 1, content: ctx, type: "ctx" });
     }
   }
-  
-  // Build paired rows
   const maxLen = Math.max(leftLines.length, rightLines.length);
   const rows = [];
   for (let i = 0; i < maxLen; i++) {
-    const l = leftLines[i] || { content: "", type: "empty" };
-    const r = rightLines[i] || { content: "", type: "empty" };
+    const l = leftLines[i] || { content: "", type: "empty", num: "" };
+    const r = rightLines[i] || { content: "", type: "empty", num: "" };
     rows.push({ left: l, right: r });
   }
-  
+  return rows;
+}
+
+// Helper: render a single file's diff as split panes
+function renderFileDiff(fileName, rows) {
+  const delCount = rows.filter(r=>r.left.type==="del").length;
+  const addCount = rows.filter(r=>r.right.type==="add").length;
   return `
-    ${pdfBtn()}
     <div class="diff-header">
-      <span>📝 Code Changes — Side by Side</span>
-      <span class="muted" style="font-size:0.72rem;">${leftLines.filter(l=>l.type==="del").length} removed · ${rightLines.filter(r=>r.type==="add").length} added</span>
+      <span class="mono">� ${escapeHtml(fileName)}</span>
+      <span class="muted" style="font-size:0.72rem;">${delCount} removed · ${addCount} added</span>
     </div>
     <div class="diff-split">
       <div class="diff-pane diff-left">
-        <div class="diff-pane-head">📄 Original</div>
+        <div class="diff-pane-head">Original</div>
         ${rows.map(r => `<div class="diff-row ${r.left.type}"><span class="diff-ln">${r.left.num||""}</span><span class="diff-code">${escapeHtml(r.left.content) || "&nbsp;"}</span></div>`).join("")}
       </div>
       <div class="diff-pane diff-right">
-        <div class="diff-pane-head">✅ Fixed</div>
+        <div class="diff-pane-head">Fixed</div>
         ${rows.map(r => `<div class="diff-row ${r.right.type}"><span class="diff-ln">${r.right.num||""}</span><span class="diff-code">${escapeHtml(r.right.content) || "&nbsp;"}</span></div>`).join("")}
       </div>
     </div>`;
+}
+
+// Tab 4: Code Fix (File-wise side-by-side GitHub-style diff)
+function renderCodeFixTab(rem) {
+  const diff = rem.diff_excerpt || "";
+  const changedFiles = rem.changed_files || [];
+
+  // If we have a diff, parse it file-by-file
+  if (diff) {
+    // Split diff into file sections by "diff --git" headers
+    const fileSections = [];
+    let currentFile = null;
+    let currentLines = [];
+    for (const line of diff.split("\n")) {
+      if (line.startsWith("diff --git")) {
+        if (currentFile) fileSections.push({ name: currentFile, lines: currentLines });
+        const m = line.match(/diff --git a\/(.+) b\//);
+        currentFile = m ? m[1] : "unknown";
+        currentLines = [];
+      } else if (line.startsWith("---") || line.startsWith("+++")) {
+        continue; // skip file path lines
+      } else if (currentFile) {
+        currentLines.push(line);
+      }
+    }
+    if (currentFile) fileSections.push({ name: currentFile, lines: currentLines });
+
+    // Also check for "+++ b/" style (no diff --git header)
+    if (fileSections.length === 0) {
+      // Single file diff — use changed_files[0] as name
+      const fileName = changedFiles.find(f=>f.endsWith(".java")||f.endsWith(".py")||f.endsWith(".js")) || (changedFiles[0] || "source");
+      fileSections.push({ name: fileName, lines: diff.split("\n") });
+    }
+
+    const fileDiffs = fileSections.map(sec => {
+      const rows = parseDiffToFileRows(sec.lines);
+      return renderFileDiff(sec.name, rows);
+    }).join('<div style="height:0.75rem;"></div>');
+
+    return `${pdfBtn()}${fileDiffs}`;
+  }
+
+  // No diff — show changed file list with auto-fix info
+  if (changedFiles.length) {
+    const codeFiles = changedFiles.filter(f => !f.endsWith("pom.xml") && !f.endsWith("requirements.txt") && !f.endsWith("package.json"));
+    if (codeFiles.length) {
+      // Show known fixes per file
+      const fixInfo = {
+        "StreamUtils.java": "Changed `int bytesCopied` → `long bytesCopied` (Commons IO 2.7: IOUtils.copy returns long)",
+      };
+      return `
+        ${pdfBtn()}
+        <div class="section">
+          <h3>🔧 Code Files Modified (${codeFiles.length})</h3>
+          <p class="muted" style="margin-bottom:0.75rem;">The following source files were automatically fixed to resolve breaking changes after dependency upgrades:</p>
+          ${codeFiles.map(f => {
+            const fileName = f.split("/").pop();
+            const info = fixInfo[fileName] || "Auto-fixed to resolve breaking change";
+            return `<div class="vuln-row"><div class="vuln-info"><div class="vuln-name mono">${escapeHtml(f)}</div><div class="vuln-detail">${escapeHtml(info)}</div></div><span class="badge completed">✅ Fixed</span></div>`;
+          }).join("")}
+        </div>`;
+    }
+  }
+
+  return `<div class="empty"><p>No code fixes needed for this run.</p></div>`;
 }
 
 // Tab 5: Tests
@@ -396,7 +442,17 @@ function drawScoreChart(findings, proposals) {
   });
 }
 
-async function loadRunDetail() { if(!state.selectedRunId){detailEl.innerHTML="";hintEl.style.display="block";return;} const run=await fetchJson(`/api/runs/${state.selectedRunId}`); showPage("run-detail"); renderRunDetail(run); }
+let lastRunHash = "";
+
+async function loadRunDetail() {
+  if(!state.selectedRunId){detailEl.innerHTML="";hintEl.style.display="block";return;}
+  const run=await fetchJson(`/api/runs/${state.selectedRunId}`);
+  // Hash check: skip re-render if data unchanged (prevents chart flicker)
+  const hash = JSON.stringify({s:run.status, p:run.phase, e:(run.events||[]).length, f:(run.findings||[]).length, pr:(run.proposals||[]).length, pu:run.pull_request?.url, cf:(run.remediation_summary?.changed_files||[]).length});
+  if (hash === lastRunHash) return; // No changes — don't re-render
+  lastRunHash = hash;
+  showPage("run-detail"); renderRunDetail(run);
+}
 async function loadRuns() { const runs=await fetchJson("/api/runs"); renderRuns(runs); }
 
 $("refresh-runs").addEventListener("click", async () => { await loadRuns(); await loadRunDetail(); });
