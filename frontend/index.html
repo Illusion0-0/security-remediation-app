@@ -6,8 +6,6 @@
   <title>SecureRemediate</title>
   <link rel="stylesheet" href="/styles.css" />
   <script>
-    // Same-origin by default (Render serves both frontend + API from one host)
-    // Override via localStorage if frontend is hosted elsewhere (e.g. Vercel)
     window.API_BASE_URL = localStorage.getItem("API_BASE_URL") || "";
   </script>
 </head>
@@ -57,6 +55,20 @@
       <form id="scan-form">
         <label for="repo-url">Repository URL or path</label>
         <input id="repo-url" required placeholder="https://github.com/Illusion0-0/vulnerable-mono-repo" />
+
+        <label>Languages to Scan</label>
+        <div style="display:flex; gap:0.75rem; margin-bottom:0.5rem; flex-wrap:wrap;">
+          <label style="display:flex; align-items:center; gap:0.35rem; font-weight:500; margin:0; cursor:pointer;">
+            <input type="checkbox" id="lang-java" checked style="width:auto;"> Java
+          </label>
+          <label style="display:flex; align-items:center; gap:0.35rem; font-weight:500; margin:0; cursor:pointer;">
+            <input type="checkbox" id="lang-python" checked style="width:auto;"> Python
+          </label>
+          <label style="display:flex; align-items:center; gap:0.35rem; font-weight:500; margin:0; cursor:pointer;">
+            <input type="checkbox" id="lang-nodejs" checked style="width:auto;"> Node.js
+          </label>
+        </div>
+
         <label for="requested-by">Requested by</label>
         <input id="requested-by" value="hackathon-user" />
         <button type="submit" id="start-scan-button" class="btn-primary" style="margin-top: 1rem; width: 100%;">Start Scan</button>
@@ -86,6 +98,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=4"></script>
+  <script src="/app.js?v=5"></script>
 </body>
 </html>

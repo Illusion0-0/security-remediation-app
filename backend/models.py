@@ -97,6 +97,7 @@ class RunRecord(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     repo_url: str
     requested_by: str
+    languages: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     status: RunStatus = RunStatus.QUEUED
@@ -114,6 +115,7 @@ class RunRecord(BaseModel):
 class CreateRunRequest(BaseModel):
     repo_url: str
     requested_by: str = "hackathon-user"
+    languages: list[str] = Field(default_factory=list)
 
 
 class ApprovalDecisionRequest(BaseModel):

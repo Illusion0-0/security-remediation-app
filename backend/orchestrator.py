@@ -11,6 +11,11 @@ from .store import RunStore
 
 DEFAULT_PR_BASE_BRANCH = "develop"
 
+# Known package names per language for filtering
+JAVA_PACKAGES = {"log4j-core", "commons-text", "jackson-databind", "snakeyaml", "commons-io", "dom4j", "guava", "xstream", "commons-compress"}
+PYTHON_PACKAGES = {"requests", "urllib3", "cryptography", "pillow", "pyyaml", "jinja2", "werkzeug", "aiohttp", "setuptools", "django"}
+NODE_PACKAGES = {"lodash", "axios", "express", "minimatch", "handlebars", "qs", "moment", "ws", "jsonwebtoken", "node-forge"}
+
 
 @dataclass
 class OrchestratorConfig:
@@ -25,7 +30,6 @@ class RemediationOrchestrator:
         self.config = config or OrchestratorConfig()
         self._queue: asyncio.Queue[str] = asyncio.Queue()
         self._workers: list[asyncio.Task] = []
-
         self.adk = AdkPipelineRunner()
 
     async def start(self) -> None:
@@ -67,11 +71,29 @@ class RemediationOrchestrator:
                         self.store.add_event(run_id, f"ADK workspace cleanup warning: {cleanup_exc}", level="warn")
                 self._queue.task_done()
 
+    @staticmethod
+    def _finding_matches_language(finding, languages: list[str]) -> bool:
+        """Check if a finding matches any of the selected languages."""
+        if not languages:
+            return True
+        dep = finding.dependency.lower()
+        # Extract package name from "groupId:artifactId" format
+        pkg = dep.split(":")[-1] if ":" in dep else dep
+        for lang in languages:
+            if lang == "java" and (":" in finding.dependency and not dep.startswith(("pypi", "npm"))):
+                return True
+            if lang == "java" and pkg in JAVA_PACKAGES:
+                return True
+            if lang == "python" and (pkg in PYTHON_PACKAGES or "pypi" in dep):
+                return True
+            if lang == "nodejs" and (pkg in NODE_PACKAGES or "npm" in dep):
+                return True
+        return False
+
     async def _execute(self, run_id: str, worker_number: int) -> None:
         run = self.store.get(run_id)
         if run is None:
             return
-
         if run.status in {RunStatus.COMPLETED, RunStatus.FAILED}:
             return
 
@@ -80,62 +102,51 @@ class RemediationOrchestrator:
 
         if not run.findings:
             run.phase = "scanning"
-            self.store.add_event(run_id, "ADK scanner agent scanning repository for vulnerabilities")
-            run.findings = await self.adk.run_scan(run.repo_url, run.id)
-            self.store.add_event(run_id, f"Scanner found {len(run.findings)} findings")
+            lang_str = ", ".join(run.languages) if run.languages else "all languages"
+            self.store.add_event(run_id, f"Scanning for vulnerabilities ({lang_str})")
+            all_findings = await self.adk.run_scan(run.repo_url, run.id)
+            # Filter by selected languages
+            if run.languages:
+                run.findings = [f for f in all_findings if self._finding_matches_language(f, run.languages)]
+                self.store.add_event(run_id, f"Found {len(all_findings)} total, {len(run.findings)} matching selected languages")
+            else:
+                run.findings = all_findings
+                self.store.add_event(run_id, f"Scanner found {len(run.findings)} findings")
             if len(run.findings) == 0:
-                self.store.add_event(run_id, "No vulnerabilities detected by scanner")
+                self.store.add_event(run_id, "No vulnerabilities detected")
                 run.remediation_summary.status = "completed"
                 run.pull_request.status = "skipped"
-                run.pull_request.reason = "No vulnerabilities found; remediation and PR not required"
+                run.pull_request.reason = "No vulnerabilities found"
                 await self._validate_and_finalize(run)
                 return
 
         if run.findings and not run.remediation_requested:
             run.status = RunStatus.AWAITING_APPROVAL
             run.phase = "awaiting_remediation_start"
-            self.store.add_event(run_id, "Vulnerabilities ready for review. Awaiting user approval to start remediation.")
+            self.store.add_event(run_id, "Vulnerabilities ready for review. Awaiting approval.")
             self.store.replace(run)
             return
 
         if not run.proposals:
             run.phase = "remediation"
-            planned = await self.adk.plan_remediation(
-                findings=run.findings,
-                repo_url=run.repo_url,
-                run_id=run.id,
-            )
+            planned = await self.adk.plan_remediation(findings=run.findings, repo_url=run.repo_url, run_id=run.id)
             for proposal in planned:
                 proposal.approval_status = ApprovalStatus.APPROVED
-                self.store.add_event(
-                    run_id,
-                    (
-                        f"Approved remediation plan for {proposal.dependency} "
-                        f"{proposal.from_version}->{proposal.to_version} score={proposal.confidence_score}"
-                    ),
-                )
+                self.store.add_event(run_id, f"Approved {proposal.dependency} {proposal.from_version}->{proposal.to_version}")
                 run.proposals.append(proposal)
 
         if run.findings and run.remediation_summary.status == "not_started":
             run.phase = "remediation_apply"
             run.remediation_summary.status = "in_progress"
-            self.store.add_event(run_id, "ADK fixer agent applying dependency updates to pom.xml")
-            apply_result = await self.adk.apply_remediation(
-                repo_url=run.repo_url,
-                run_id=run.id,
-                proposals=run.proposals,
-            )
+            self.store.add_event(run_id, "Applying dependency updates")
+            apply_result = await self.adk.apply_remediation(repo_url=run.repo_url, run_id=run.id, proposals=run.proposals)
             run.remediation_summary.status = "completed"
             run.remediation_summary.workspace_path = apply_result.get("workspace_path")
             run.remediation_summary.changed_files = apply_result.get("changed_files", [])
             run.remediation_summary.changes = apply_result.get("changes", [])
             run.remediation_summary.diff_excerpt = apply_result.get("diff_excerpt")
             run.pull_request = apply_result.get("pull_request", run.pull_request)
-
-            self.store.add_event(
-                run_id,
-                f"Remediation completed. changed_files={len(run.remediation_summary.changed_files)} pr_status={run.pull_request.status}",
-            )
+            self.store.add_event(run_id, f"Remediation done. files={len(run.remediation_summary.changed_files)} pr={run.pull_request.status}")
 
         await self._validate_and_finalize(run)
 
@@ -143,17 +154,13 @@ class RemediationOrchestrator:
         run = self.store.get(run_id)
         if run is None:
             return
-        
         await self.submit(run_id)
 
     async def _validate_and_finalize(self, run: RunRecord) -> None:
         run.phase = "validation"
-
         for attempt in range(self.config.max_retry_attempts + 1):
             run.validations = await self.adk.validate_remediation(
-                repo_url=run.repo_url,
-                run_id=run.id,
-                proposals=run.proposals,
+                repo_url=run.repo_url, run_id=run.id, proposals=run.proposals,
                 apply_result={
                     "workspace_path": run.remediation_summary.workspace_path,
                     "changed_files": run.remediation_summary.changed_files,
@@ -162,47 +169,23 @@ class RemediationOrchestrator:
                     "pull_request": run.pull_request,
                 },
             )
-            
             proposal_by_id = {item.id: item for item in run.proposals}
             for result in run.validations:
                 proposal = proposal_by_id.get(result.proposal_id)
                 dependency = proposal.dependency if proposal is not None else result.proposal_id
-                self.store.add_event(
-                    run.id,
-                    f"Validation {'passed' if result.passed else 'failed'} for {dependency}",
-                    level="info" if result.passed else "error",
-                )
-
+                self.store.add_event(run.id, f"Validation {'passed' if result.passed else 'failed'} for {dependency}", level="info" if result.passed else "error")
             failed = [item for item in run.validations if not item.passed]
             if not failed:
                 break
-            
             if attempt >= self.config.max_retry_attempts:
                 run.status = RunStatus.FAILED
                 run.phase = "failed"
-                self.store.add_event(
-                    run.id,
-                    "One or more approved proposals failed validation after retry attempts",
-                    level="error",
-                )
+                self.store.add_event(run.id, "Validation failed after retries", level="error")
                 self.store.replace(run)
                 return
-
             run.phase = "remediation_retry"
-            self.store.add_event(
-                run.id,
-                (
-                    f"Validation failed. Triggering fixer retry {attempt + 1}/"
-                    f"{self.config.max_retry_attempts}"
-                ),
-                level="warn",
-            )
-
-            retry_apply_result = await self.adk.apply_remediation(
-                repo_url=run.repo_url,
-                run_id=run.id,
-                proposals=run.proposals,
-            )
+            self.store.add_event(run.id, f"Retry {attempt + 1}/{self.config.max_retry_attempts}", level="warn")
+            retry_apply_result = await self.adk.apply_remediation(repo_url=run.repo_url, run_id=run.id, proposals=run.proposals)
             run.remediation_summary.workspace_path = retry_apply_result.get("workspace_path")
             run.remediation_summary.changed_files = retry_apply_result.get("changed_files", [])
             run.remediation_summary.changes = retry_apply_result.get("changes", [])
@@ -214,15 +197,14 @@ class RemediationOrchestrator:
         if not run.pull_request.url:
             run.pull_request.url = self._build_pr_url(run.repo_url, run.id)
         run.pull_request.reason = None
-        self.store.add_event(run.id, f"Pull request generated: {run.pull_request.url}")
-
+        self.store.add_event(run.id, f"Pull request: {run.pull_request.url}")
         run.phase = "evidence"
         run.evidence, summary = await self.adk.generate_report(run)
         if summary:
             self.store.add_event(run.id, summary)
         run.status = RunStatus.COMPLETED
         run.phase = "completed"
-        self.store.add_event(run.id, "Run completed with evidence bundle ready")
+        self.store.add_event(run.id, "Run completed")
         self.store.replace(run)
 
     def _build_pr_url(self, repo_url: str, run_id: str) -> str:
@@ -233,10 +215,8 @@ class RemediationOrchestrator:
         base_branch = DEFAULT_PR_BASE_BRANCH
         if repo.startswith("https://github.com/"):
             return f"{repo}/compare/{base_branch}...{branch}?expand=1"
-        
         parsed = urlparse(repo)
         if parsed.scheme and parsed.netloc and parsed.path:
             clean = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/")
             return f"{clean}/compare/{base_branch}...{branch}?expand=1"
-        
         return f"generated://pull-request/{run_id}"
