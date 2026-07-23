@@ -3,91 +3,72 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SecureRemediate — AI Security Dashboard</title>
+  <title>SecureRemediate</title>
   <link rel="stylesheet" href="/styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script>
     window.API_BASE_URL = localStorage.getItem("API_BASE_URL") || "";
   </script>
 </head>
 <body>
-  <nav class="nav glass">
+  <nav class="nav">
     <div class="nav-brand">
       <div class="nav-dot">◈</div>
       <span>SecureRemediate</span>
-      <span class="nav-tag">AI Security Platform</span>
     </div>
     <div class="nav-actions">
-      <button id="open-scan-modal" class="btn-primary slim">+ New Scan</button>
-      <button id="home-button" class="slim">Dashboard</button>
+      <button id="open-scan-modal" class="btn-primary slim">+ Scan</button>
+      <button id="home-button" class="slim">Home</button>
     </div>
   </nav>
 
   <main class="layout">
-    <!-- Dashboard Page -->
     <section class="page active" id="dashboard-page">
-      <div class="card glass">
+      <div class="card">
         <div class="card-head">
           <h2>Dashboard</h2>
-          <button id="refresh-runs" class="slim">↻ Refresh</button>
+          <button id="refresh-runs" class="slim">↻</button>
         </div>
         <div class="stats" id="stats"></div>
         <div id="runs-table" class="runs-grid"></div>
       </div>
     </section>
 
-    <!-- Run Detail Page with 10 Report Tabs -->
     <section class="page" id="run-detail-page">
-      <div class="card glass">
+      <div class="card">
         <div class="card-head">
           <h2>Run Detail</h2>
-          <button id="run-detail-home" class="slim">← Back</button>
+          <button id="run-detail-home" class="slim">←</button>
         </div>
         <p id="selected-run-hint" class="muted">Select a run to view details.</p>
-
-        <!-- Tab Navigation -->
-        <div id="report-tabs" class="tab-nav" style="display:none;">
-          <button class="tab-btn active" data-tab="executive">📊 Executive</button>
-          <button class="tab-btn" data-tab="vulnerabilities">🔒 Vulnerabilities</button>
-          <button class="tab-btn" data-tab="changes">📝 Changes</button>
-          <button class="tab-btn" data-tab="codefix">🔧 Code Fix</button>
-          <button class="tab-btn" data-tab="tests">✅ Tests</button>
-          <button class="tab-btn" data-tab="score">📈 Security Score</button>
-          <button class="tab-btn" data-tab="pr">🔀 Pull Request</button>
-          <button class="tab-btn" data-tab="timeline">📜 Timeline</button>
-          <button class="tab-btn" data-tab="deps">📦 Dependencies</button>
-          <button class="tab-btn" data-tab="evidence">📋 Evidence</button>
-        </div>
-
-        <!-- Tab Content Areas -->
-        <div id="tab-content" style="margin-top: 1rem;"></div>
+        <div id="run-detail-body"></div>
       </div>
     </section>
   </main>
 
-  <!-- Scan Modal -->
   <div class="modal-shell hidden" id="scan-modal-shell">
     <div class="modal-backdrop" id="scan-modal-backdrop"></div>
-    <div class="modal-card glass">
+    <div class="modal-card">
       <div class="card-head">
         <h2>New Scan</h2>
         <button id="close-scan-modal" class="slim">✕</button>
       </div>
       <form id="scan-form">
-        <label for="repo-url">Repository URL</label>
+        <label for="repo-url">Repository URL or path</label>
         <input id="repo-url" required placeholder="https://github.com/Illusion0-0/vulnerable-mono-repo" />
+
         <label>Languages to Scan</label>
         <div style="display:flex; gap:0.75rem; margin-bottom:0.5rem; flex-wrap:wrap;">
           <label style="display:flex; align-items:center; gap:0.35rem; font-weight:500; margin:0; cursor:pointer;">
             <input type="checkbox" id="lang-java" checked style="width:auto;"> Java
           </label>
           <label style="display:flex; align-items:center; gap:0.35rem; font-weight:500; margin:0; cursor:pointer;">
-            <input type="checkbox" id="lang-python" style="width:auto;"> Python
+            <input type="checkbox" id="lang-python" checked style="width:auto;"> Python
           </label>
           <label style="display:flex; align-items:center; gap:0.35rem; font-weight:500; margin:0; cursor:pointer;">
-            <input type="checkbox" id="lang-nodejs" style="width:auto;"> Node.js
+            <input type="checkbox" id="lang-nodejs" checked style="width:auto;"> Node.js
           </label>
         </div>
+
         <label for="requested-by">Requested by</label>
         <input id="requested-by" value="hackathon-user" />
         <button type="submit" id="start-scan-button" class="btn-primary" style="margin-top: 1rem; width: 100%;">Start Scan</button>
@@ -103,11 +84,10 @@
     </div>
   </div>
 
-  <!-- Remediation Modal -->
   <div class="modal-shell hidden" id="remediation-modal-shell">
     <div class="modal-backdrop"></div>
-    <div class="modal-card glass">
-      <div class="card-head"><h2>Remediation in Progress</h2></div>
+    <div class="modal-card">
+      <div class="card-head"><h2>Remediation</h2></div>
       <div class="between">
         <strong id="remediation-progress-title" style="font-size: 0.85rem;">Applying fixes...</strong>
         <span class="badge running" id="remediation-progress-phase">remediation_requested</span>
@@ -118,6 +98,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=6"></script>
+  <script src="/app.js?v=5"></script>
 </body>
 </html>
