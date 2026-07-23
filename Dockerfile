@@ -25,13 +25,19 @@ COPY requirements.txt /app/application/requirements.txt
 RUN pip install --no-cache-dir --only-binary :all: -r /app/application/requirements.txt && pip install pytest
 
 # Clone the agent repo — use commit SHA for cache busting
-# Render sets RENDER_GIT_COMMIT env var, use it to force fresh clone every build
 ARG RENDER_GIT_COMMIT=latest
 RUN echo "Build commit: ${RENDER_GIT_COMMIT}" && \
     rm -rf /app/agent && \
     git clone https://github.com/Illusion0-0/security-remediation-agent.git /app/agent && \
     cd /app/agent && \
     git log --oneline -1
+
+# Pre-cache Maven dependencies for the vulnerable-mono-repo Java service
+# Downloads all deps during build so runtime mvn test is fast
+RUN git clone --depth 1 https://github.com/Illusion0-0/vulnerable-mono-repo.git /tmp/mvn-cache && \
+    cd /tmp/mvn-cache/java-service && \
+    mvn dependency:resolve compile -q --no-transfer-progress -DskipTests || true && \
+    cd / && rm -rf /tmp/mvn-cache
 
 # Copy the application code
 COPY . /app/application
