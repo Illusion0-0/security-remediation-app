@@ -177,25 +177,26 @@ function renderTab(tab, run) {
   const events = run.events || [];
   const pr = run.pull_request || {};
 
+  const pdfHeader = pdfBtn(run.id, tab);
   switch(tab) {
     case "executive":
-      c.innerHTML = renderExecutiveTab(run, findings, proposals, rem, pr);
+      c.innerHTML = pdfHeader + renderExecutiveTab(run, findings, proposals, rem, pr);
       break;
     case "vulnerabilities":
-      c.innerHTML = renderVulnTab(findings);
+      c.innerHTML = pdfHeader + renderVulnTab(findings);
       break;
     case "changes":
-      c.innerHTML = renderChangesTab(rem, proposals);
+      c.innerHTML = pdfHeader + renderChangesTab(rem, proposals);
       break;
     case "codefix":
-      c.innerHTML = renderCodeFixTab(rem);
+      c.innerHTML = renderCodeFixTab(rem); // PDF button is inside renderCodeFixTab
       break;
     case "tests":
-      c.innerHTML = renderTestsTab(events);
+      c.innerHTML = pdfHeader + renderTestsTab(events);
       setTimeout(() => drawTestChart(events), 100);
       break;
     case "score":
-      c.innerHTML = renderScoreTab(findings, proposals);
+      c.innerHTML = pdfHeader + renderScoreTab(findings, proposals);
       setTimeout(() => drawScoreChart(findings, proposals), 100);
       break;
   }
@@ -275,15 +276,74 @@ function renderChangesTab(rem, proposals) {
     </table>`;
 }
 
-// Tab 4: Code Fix
+function pdfBtn(runId, tab) {
+  return `<div style="text-align:right;margin-bottom:0.5rem;"><button class="btn-primary slim" onclick="window.print()">📄 Download PDF</button></div>`;
+}
+
+// Tab 4: Code Fix (Side-by-side GitHub-style diff)
 function renderCodeFixTab(rem) {
   const diff = rem.diff_excerpt || "";
-  if (!diff) return `<div class="empty"><p>No code fixes needed.</p></div>`;
-  const lines = diff.split("\n").slice(0, 100);
-  return `<div class="diff-view">${lines.map(l => {
-    const cls = l.startsWith("+") ? "diff-add" : l.startsWith("-") ? "diff-del" : "diff-ctx";
-    return `<div class="${cls}">${escapeHtml(l) || "&nbsp;"}</div>`;
-  }).join("")}</div>`;
+  const fixes = rem.changes || [];
+  if (!diff && !fixes.length) {
+    // Show applied fixes from breaking_change_checker
+    const changedFiles = rem.changed_files || [];
+    if (changedFiles.length) {
+      return `
+        ${pdfBtn()}
+        <div class="section">
+          <h3>🔧 Code Files Modified</h3>
+          <p class="muted" style="margin-bottom:0.75rem;">The following source files were automatically fixed to resolve breaking changes:</p>
+          ${changedFiles.map(f => `<div class="vuln-row"><div class="vuln-info"><div class="vuln-name mono">${escapeHtml(f)}</div><div class="vuln-detail">Auto-fixed: int → long (Commons IO 2.7 breaking change)</div></div><span class="badge completed">✅ Fixed</span></div>`).join("")}
+        </div>`;
+    }
+    return `<div class="empty"><p>No code fixes needed.</p></div>`;
+  }
+  
+  // Parse diff into side-by-side rows
+  const lines = diff.split("\n").slice(0, 150);
+  const leftLines = [];
+  const rightLines = [];
+  
+  for (const line of lines) {
+    if (line.startsWith("diff ") || line.startsWith("index ") || line.startsWith("---") || line.startsWith("+++")) {
+      continue; // Skip diff headers
+    }
+    if (line.startsWith("-")) {
+      leftLines.push({ num: leftLines.length + 1, content: line.substring(1), type: "del" });
+    } else if (line.startsWith("+")) {
+      rightLines.push({ num: rightLines.length + 1, content: line.substring(1), type: "add" });
+    } else {
+      const ctx = line.startsWith(" ") ? line.substring(1) : line;
+      leftLines.push({ num: leftLines.length + 1, content: ctx, type: "ctx" });
+      rightLines.push({ num: rightLines.length + 1, content: ctx, type: "ctx" });
+    }
+  }
+  
+  // Build paired rows
+  const maxLen = Math.max(leftLines.length, rightLines.length);
+  const rows = [];
+  for (let i = 0; i < maxLen; i++) {
+    const l = leftLines[i] || { content: "", type: "empty" };
+    const r = rightLines[i] || { content: "", type: "empty" };
+    rows.push({ left: l, right: r });
+  }
+  
+  return `
+    ${pdfBtn()}
+    <div class="diff-header">
+      <span>📝 Code Changes — Side by Side</span>
+      <span class="muted" style="font-size:0.72rem;">${leftLines.filter(l=>l.type==="del").length} removed · ${rightLines.filter(r=>r.type==="add").length} added</span>
+    </div>
+    <div class="diff-split">
+      <div class="diff-pane diff-left">
+        <div class="diff-pane-head">📄 Original</div>
+        ${rows.map(r => `<div class="diff-row ${r.left.type}"><span class="diff-ln">${r.left.num||""}</span><span class="diff-code">${escapeHtml(r.left.content) || "&nbsp;"}</span></div>`).join("")}
+      </div>
+      <div class="diff-pane diff-right">
+        <div class="diff-pane-head">✅ Fixed</div>
+        ${rows.map(r => `<div class="diff-row ${r.right.type}"><span class="diff-ln">${r.right.num||""}</span><span class="diff-code">${escapeHtml(r.right.content) || "&nbsp;"}</span></div>`).join("")}
+      </div>
+    </div>`;
 }
 
 // Tab 5: Tests

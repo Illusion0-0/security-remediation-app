@@ -234,11 +234,26 @@ pre { font-family: 'SF Mono', monospace; font-size: 0.76rem; padding: 0.75rem; b
 .data-table th { text-align: left; padding: 0.5rem 0.6rem; color: var(--text-dim); font-size: 0.7rem; text-transform: uppercase; border-bottom: 1px solid var(--border); }
 .data-table td { padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); }
 
-/* ===== DIFF VIEW ===== */
+/* ===== DIFF VIEW (Linear) ===== */
 .diff-view { font-family: var(--mono); font-size: 0.74rem; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
 .diff-add { background: rgba(34,197,94,0.1); color: var(--success); padding: 0.1rem 0.6rem; }
 .diff-del { background: rgba(239,68,68,0.1); color: var(--danger); padding: 0.1rem 0.6rem; }
 .diff-ctx { padding: 0.1rem 0.6rem; color: var(--text-dim); }
+
+/* ===== DIFF VIEW (Side-by-Side GitHub-style) ===== */
+.diff-header { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.8rem; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 10px 10px 0 0; font-weight: 600; font-size: 0.82rem; margin-bottom: 0; }
+.diff-split { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); border-top: none; border-radius: 0 0 10px 10px; overflow: hidden; }
+.diff-pane { background: var(--card-bg); overflow-x: auto; }
+.diff-pane-head { padding: 0.4rem 0.6rem; font-size: 0.72rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--glass-bg); }
+.diff-row { display: flex; font-family: var(--mono); font-size: 0.72rem; line-height: 1.5; padding: 0; }
+.diff-row.del { background: rgba(239,68,68,0.08); }
+.diff-row.add { background: rgba(34,197,94,0.08); }
+.diff-row.ctx { background: transparent; }
+.diff-row.empty { background: rgba(0,0,0,0.02); }
+.diff-ln { min-width: 32px; padding: 0 0.4rem; text-align: right; color: var(--text-faint); border-right: 1px solid var(--border); user-select: none; }
+.diff-code { padding: 0 0.5rem; white-space: pre; flex: 1; }
+.diff-left .diff-row.del .diff-code { color: var(--danger); }
+.diff-right .diff-row.add .diff-code { color: var(--success); }
 
 /* ===== CHART CONTAINER ===== */
 .chart-container { position: relative; max-width: 400px; margin: 0 auto; padding: 1rem; }
