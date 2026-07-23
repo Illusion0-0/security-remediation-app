@@ -91,14 +91,11 @@ class AdkPipelineRunner:
     async def _delete_json(self, endpoint: str) -> dict[str, Any]:
         return await asyncio.to_thread(self._delete_json_sync, endpoint)
 
-    async def run_scan(self, repo_url: str, run_id: str) -> list[VulnerabilityFinding]:
-        response = await self._post_json(
-            "/scan",
-            {
-                "repo_url": repo_url,
-                "run_id": run_id,
-            },
-        )
+    async def run_scan(self, repo_url: str, run_id: str, languages: list[str] | None = None) -> list[VulnerabilityFinding]:
+        payload: dict[str, Any] = {"repo_url": repo_url, "run_id": run_id}
+        if languages:
+            payload["languages"] = languages
+        response = await self._post_json("/scan", payload)
         raw_findings = response.get("findings")
         if not isinstance(raw_findings, list):
             raise RuntimeError("ADK /scan response missing findings list")

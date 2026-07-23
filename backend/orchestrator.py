@@ -102,13 +102,9 @@ class RemediationOrchestrator:
             run.phase = "scanning"
             lang_str = ", ".join(run.languages) if run.languages else "all languages"
             self.store.add_event(run_id, f"Scanning for vulnerabilities ({lang_str})")
-            all_findings = await self.adk.run_scan(run.repo_url, run.id)
-            if run.languages:
-                run.findings = [f for f in all_findings if self._finding_matches_language(f, run.languages)]
-                self.store.add_event(run_id, f"Found {len(all_findings)} total, {len(run.findings)} matching selected languages")
-            else:
-                run.findings = all_findings
-                self.store.add_event(run_id, f"Scanner found {len(run.findings)} findings")
+            all_findings = await self.adk.run_scan(run.repo_url, run.id, languages=run.languages or None)
+            run.findings = all_findings
+            self.store.add_event(run_id, f"Scanner found {len(run.findings)} findings for selected languages")
             if len(run.findings) == 0:
                 self.store.add_event(run_id, "No vulnerabilities detected")
                 run.remediation_summary.status = "completed"
