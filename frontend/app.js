@@ -494,6 +494,70 @@ document.querySelectorAll(".theme-btn").forEach(btn => {
   btn.addEventListener("click", () => applyTheme(btn.dataset.theme));
 });
 
+// ===== ANALYTICS PAGE =====
+function showAnalytics() {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  $("analytics-page").classList.add("active");
+  loadAnalytics();
+}
+
+async function loadAnalytics() {
+  try {
+    const data = await fetchJson("/api/analytics");
+    renderAnalytics(data);
+  } catch (e) {
+    $("analytics-body").innerHTML = `<div class="empty"><p>Failed to load analytics: ${escapeHtml(e.message)}</p></div>`;
+  }
+}
+
+let analyticsCharts = {};
+function renderAnalytics(d) {
+  const sev = d.severity_distribution || {};
+  const topCves = d.top_cves || [];
+  const topDeps = d.top_dependencies || [];
+  const langs = d.language_distribution || {};
+  const recs = d.recommendations || [];
+  const risks = d.exploitation_risks || {};
+
+  $("analytics-body").innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-num" style="color:var(--accent)">${d.total_runs||0}</div><div class="kpi-label">Total Scans</div></div>
+      <div class="kpi-card"><div class="kpi-num" style="color:var(--critical)">${d.total_vulnerabilities||0}</div><div class="kpi-label">Vulnerabilities</div></div>
+      <div class="kpi-card"><div class="kpi-num" style="color:var(--success)">${d.total_fixes_applied||0}</div><div class="kpi-label">Fixes Applied</div></div>
+      <div class="kpi-card"><div class="kpi-num">${Math.round((d.total_fixes_applied||0)/Math.max(d.total_vulnerabilities||1,1)*100)}%</div><div class="kpi-label">Fix Rate</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
+      <div class="section"><h3>Severity Distribution</h3><div class="chart-container"><canvas id="sev-chart"></canvas></div></div>
+      <div class="section"><h3>Language Distribution</h3><div class="chart-container"><canvas id="lang-chart"></canvas></div></div>
+    </div>
+    <div class="section" style="margin-top:1rem;"><h3>Top Vulnerable Dependencies</h3>
+      ${topDeps.length ? `<table class="data-table"><thead><tr><th>Dependency</th><th>Occurrences</th></tr></thead><tbody>${topDeps.map(d=>`<tr><td class="mono"><strong>${escapeHtml(d.dependency)}</strong></td><td>${d.count}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">No data yet.</p>'}
+    </div>
+    <div class="section"><h3>Most Common CVEs</h3>
+      ${topCves.length ? `<table class="data-table"><thead><tr><th>CVE</th><th>Occurrences</th><th>Potential Impact</th></tr></thead><tbody>${topCves.map(c=>{const r=risks[c.cve]||{};return `<tr><td class="mono"><a href="https://nvd.nist.gov/vuln/detail/${escapeHtml(c.cve)}" target="_blank" style="color:var(--accent);">${escapeHtml(c.cve)}</a></td><td>${c.count}</td><td style="font-size:0.76rem;">${r.impact?`<strong>${escapeHtml(r.name||"")}</strong>: ${escapeHtml(r.impact)}`:'—'}</td></tr>`;}).join("")}</tbody></table>` : '<p class="muted">No data yet.</p>'}
+    </div>
+    <div class="section"><h3>⚠️ Exploitation Risk Assessment</h3>
+      <p class="muted" style="margin-bottom:0.5rem;font-size:0.78rem;">Real-world impact of vulnerabilities found in your codebase:</p>
+      ${Object.entries(risks).map(([cve,r])=>`<div class="vuln-row"><div class="vuln-info"><div class="vuln-name">${escapeHtml(r.name)} <span class="badge ${r.cvss>=9?'Critical':'High'}">CVSS ${r.cvss}</span></div><div class="vuln-detail">${escapeHtml(r.impact)} <span class="mono">(${escapeHtml(r.affected)})</span></div></div><span class="mono muted">${escapeHtml(cve)}</span></div>`).join("")}
+    </div>
+    <div class="section"><h3>💡 Developer Recommendations</h3>
+      ${recs.map(r=>`<div class="vuln-row"><div class="vuln-info"><div class="vuln-name">${escapeHtml(r.title)}</div><div class="vuln-detail">${escapeHtml(r.desc)}</div></div><span class="badge ${r.severity}">${escapeHtml(r.severity)}</span></div>`).join("")}
+    </div>`;
+
+  // Charts
+  setTimeout(()=>{
+    Object.values(analyticsCharts).forEach(c=>c&&c.destroy&&c.destroy());
+    const sevCtx = document.getElementById("sev-chart");
+    if (sevCtx && typeof Chart !== "undefined") {
+      analyticsCharts.sev = new Chart(sevCtx, {type:"doughnut",data:{labels:["Critical","High","Medium","Low"],datasets:[{data:[sev.Critical||0,sev.High||0,sev.Medium||0,sev.Low||0],backgroundColor:["#dc2626","#ea580c","#ca8a04","#16a34a"],borderWidth:0}]},options:{plugins:{legend:{position:"bottom"}}}});
+    }
+    const langCtx = document.getElementById("lang-chart");
+    if (langCtx && typeof Chart !== "undefined" && Object.keys(langs).length) {
+      analyticsCharts.lang = new Chart(langCtx, {type:"bar",data:{labels:Object.keys(langs),datasets:[{data:Object.values(langs),backgroundColor:"#3b82f6",borderWidth:0}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+    }
+  }, 100);
+}
+
 $("hero-scan-btn").addEventListener("click", openScanModal);
 $("hero-runs-btn").addEventListener("click", () => {
   document.querySelector('#runs-table').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -503,6 +567,8 @@ $("close-scan-modal").addEventListener("click", closeScanModal);
 scanModalBackdropEl.addEventListener("click", closeScanModal);
 $("home-button").addEventListener("click", goHome);
 $("run-detail-home").addEventListener("click", goHome);
+$("analytics-button").addEventListener("click", showAnalytics);
+$("analytics-home").addEventListener("click", goHome);
 
 async function init() {
   showPage("dashboard"); resetScanProgress(); closeRemediationModal(); await loadRuns();

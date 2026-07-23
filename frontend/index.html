@@ -23,6 +23,7 @@
         <button class="theme-btn" data-theme="contrast">◐</button>
       </div>
       <button id="open-scan-modal" class="btn-primary slim">+ New Scan</button>
+      <button id="analytics-button" class="slim">📊 Analytics</button>
       <button id="home-button" class="slim">Home</button>
     </div>
   </nav>
@@ -30,7 +31,6 @@
   <main class="layout">
     <!-- Landing Page -->
     <section class="page active" id="dashboard-page">
-      <!-- Hero -->
       <div class="hero">
         <h1>🔒 dbSecureRemediate</h1>
         <p class="hero-sub">AI-Powered Security Remediation Platform</p>
@@ -40,84 +40,44 @@
           <button id="hero-runs-btn" class="slim" style="font-size:0.9rem;padding:0.7rem 1.5rem;">📊 View Recent Runs</button>
         </div>
       </div>
-
-      <!-- Architecture Flow Diagram -->
       <div class="card" style="margin-top:1.5rem;">
         <div class="card-head"><h2>🔧 How It Works</h2></div>
         <div class="flow-diagram">
-          <div class="flow-step" data-step="1">
-            <div class="flow-icon">🔍</div>
-            <div class="flow-label">Scan</div>
-            <div class="flow-desc">OSV.dev queries<br/>Java · Python · Node.js</div>
-          </div>
+          <div class="flow-step"><div class="flow-icon">🔍</div><div class="flow-label">Scan</div><div class="flow-desc">OSV.dev queries<br/>Java · Python · Node.js</div></div>
           <div class="flow-arrow">→</div>
-          <div class="flow-step" data-step="2">
-            <div class="flow-icon">📋</div>
-            <div class="flow-label">Plan</div>
-            <div class="flow-desc">Version bump<br/>proposals</div>
-          </div>
+          <div class="flow-step"><div class="flow-icon">📋</div><div class="flow-label">Plan</div><div class="flow-desc">Version bump<br/>proposals</div></div>
           <div class="flow-arrow">→</div>
-          <div class="flow-step" data-step="3">
-            <div class="flow-icon">⚙️</div>
-            <div class="flow-label">Apply</div>
-            <div class="flow-desc">Edit pom.xml<br/>+ code fixes</div>
-          </div>
+          <div class="flow-step"><div class="flow-icon">⚙️</div><div class="flow-label">Apply</div><div class="flow-desc">Edit pom.xml<br/>+ code fixes</div></div>
           <div class="flow-arrow">→</div>
-          <div class="flow-step" data-step="4">
-            <div class="flow-icon">✅</div>
-            <div class="flow-label">Validate</div>
-            <div class="flow-desc">Breaking change<br/>detection</div>
-          </div>
+          <div class="flow-step"><div class="flow-icon">✅</div><div class="flow-label">Validate</div><div class="flow-desc">Breaking change<br/>detection</div></div>
           <div class="flow-arrow">→</div>
-          <div class="flow-step" data-step="5">
-            <div class="flow-icon">🔀</div>
-            <div class="flow-label">PR</div>
-            <div class="flow-desc">GitHub Pull<br/>Request</div>
-          </div>
+          <div class="flow-step"><div class="flow-icon">🔀</div><div class="flow-label">PR</div><div class="flow-desc">GitHub Pull<br/>Request</div></div>
         </div>
       </div>
-
-      <!-- Feature Cards -->
       <div class="feature-grid">
-        <div class="feature-card">
-          <div class="feature-icon">🌐</div>
-          <h3>Multi-Language</h3>
-          <p>Java (Maven), Python (pip), Node.js (npm) — all from one scan.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🤖</div>
-          <h3>AI-Powered Fixes</h3>
-          <p>GLM-4.5 detects breaking changes and applies code fixes automatically.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">📊</div>
-          <h3>Evidence & Reports</h3>
-          <p>PDF executive summaries, CVE mappings, and full audit trail.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">⚡</div>
-          <h3>Instant PRs</h3>
-          <p>Automated GitHub PRs with version bumps and code fixes in seconds.</p>
-        </div>
+        <div class="feature-card"><div class="feature-icon">🌐</div><h3>Multi-Language</h3><p>Java (Maven), Python (pip), Node.js (npm) — all from one scan.</p></div>
+        <div class="feature-card"><div class="feature-icon">🤖</div><h3>AI-Powered Fixes</h3><p>GLM-4.5 detects breaking changes and applies code fixes automatically.</p></div>
+        <div class="feature-card"><div class="feature-icon">📊</div><h3>Evidence & Reports</h3><p>PDF executive summaries, CVE mappings, and full audit trail.</p></div>
+        <div class="feature-card"><div class="feature-icon">⚡</div><h3>Instant PRs</h3><p>Automated GitHub PRs with version bumps and code fixes in seconds.</p></div>
       </div>
-
-      <!-- Recent Runs -->
       <div class="card" style="margin-top:1.5rem;">
-        <div class="card-head">
-          <h2>Recent Runs</h2>
-          <button id="refresh-runs" class="slim">↻</button>
-        </div>
+        <div class="card-head"><h2>Recent Runs</h2><button id="refresh-runs" class="slim">↻</button></div>
         <div class="stats" id="stats"></div>
         <div id="runs-table" class="runs-grid"></div>
       </div>
     </section>
 
+    <!-- Analytics Page -->
+    <section class="page" id="analytics-page">
+      <div class="card">
+        <div class="card-head"><h2>📊 Security Analytics Dashboard</h2><button id="analytics-home" class="slim">←</button></div>
+        <div id="analytics-body"><p class="muted">Loading analytics...</p></div>
+      </div>
+    </section>
+
     <section class="page" id="run-detail-page">
       <div class="card">
-        <div class="card-head">
-          <h2>Run Detail</h2>
-          <button id="run-detail-home" class="slim">←</button>
-        </div>
+        <div class="card-head"><h2>Run Detail</h2><button id="run-detail-home" class="slim">←</button></div>
         <p id="selected-run-hint" class="muted">Select a run to view details.</p>
         <div id="run-detail-body"></div>
       </div>
@@ -127,36 +87,22 @@
   <div class="modal-shell hidden" id="scan-modal-shell">
     <div class="modal-backdrop" id="scan-modal-backdrop"></div>
     <div class="modal-card">
-      <div class="card-head">
-        <h2>New Scan</h2>
-        <button id="close-scan-modal" class="slim">✕</button>
-      </div>
+      <div class="card-head"><h2>New Scan</h2><button id="close-scan-modal" class="slim">✕</button></div>
       <form id="scan-form">
         <label for="repo-url">Repository URL or path</label>
         <input id="repo-url" required placeholder="https://github.com/Illusion0-0/vulnerable-mono-repo" />
-
         <label>Languages to Scan</label>
         <div style="display:flex; gap:0.75rem; margin-bottom:0.5rem; flex-wrap:wrap;">
-          <label style="display:flex; align-items:center; gap:0.35rem; font-weight:500; margin:0; cursor:pointer;">
-            <input type="checkbox" id="lang-java" checked style="width:auto;"> Java
-          </label>
-          <label style="display:flex; align-items:center; gap:0.35rem; font-weight:500; margin:0; cursor:pointer;">
-            <input type="checkbox" id="lang-python" checked style="width:auto;"> Python
-          </label>
-          <label style="display:flex; align-items:center; gap:0.35rem; font-weight:500; margin:0; cursor:pointer;">
-            <input type="checkbox" id="lang-nodejs" checked style="width:auto;"> Node.js
-          </label>
+          <label style="display:flex; align-items:center; gap:0.35rem; font-weight:500; margin:0; cursor:pointer;"><input type="checkbox" id="lang-java" checked style="width:auto;"> Java</label>
+          <label style="display:flex; align-items:center; gap:0.35rem; font-weight:500; margin:0; cursor:pointer;"><input type="checkbox" id="lang-python" checked style="width:auto;"> Python</label>
+          <label style="display:flex; align-items:center; gap:0.35rem; font-weight:500; margin:0; cursor:pointer;"><input type="checkbox" id="lang-nodejs" checked style="width:auto;"> Node.js</label>
         </div>
-
         <label for="requested-by">Requested by</label>
         <input id="requested-by" value="hackathon-user" />
         <button type="submit" id="start-scan-button" class="btn-primary" style="margin-top: 1rem; width: 100%;">Start Scan</button>
       </form>
       <div class="hidden" id="scan-progress-panel" style="margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--glass-border);">
-        <div class="between">
-          <strong id="scan-progress-title" style="font-size: 0.85rem;">Scanning...</strong>
-          <span class="badge running" id="scan-progress-phase">queued</span>
-        </div>
+        <div class="between"><strong id="scan-progress-title" style="font-size: 0.85rem;">Scanning...</strong><span class="badge running" id="scan-progress-phase">queued</span></div>
         <div class="progress-track"><div class="progress-fill" id="scan-progress-fill" style="width: 8%;"></div></div>
         <p class="muted" id="scan-progress-message" style="font-size: 0.78rem;">Waiting...</p>
       </div>
@@ -167,16 +113,13 @@
     <div class="modal-backdrop"></div>
     <div class="modal-card">
       <div class="card-head"><h2>Remediation</h2></div>
-      <div class="between">
-        <strong id="remediation-progress-title" style="font-size: 0.85rem;">Applying fixes...</strong>
-        <span class="badge running" id="remediation-progress-phase">remediation_requested</span>
-      </div>
+      <div class="between"><strong id="remediation-progress-title" style="font-size: 0.85rem;">Applying fixes...</strong><span class="badge running" id="remediation-progress-phase">remediation_requested</span></div>
       <div class="progress-track"><div class="progress-fill" id="remediation-progress-fill" style="width: 10%;"></div></div>
       <p class="muted" id="remediation-progress-message" style="font-size: 0.78rem;"></p>
       <div id="remediation-commentary" style="margin-top: 0.75rem; padding: 0.75rem; background: rgba(0,0,0,0.03); border-radius: 10px; border: 1px solid var(--border); font-size: 0.72rem; color: var(--text-dim); max-height: 160px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5; font-family: 'SF Mono', monospace;"></div>
     </div>
   </div>
 
-  <script src="/app.js?v=6"></script>
+  <script src="/app.js?v=7"></script>
 </body>
 </html>

@@ -446,6 +446,71 @@ async def executive_summary_pdf(run_id: str) -> Response:
     }
     return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
 
+@app.get("/api/analytics")
+async def analytics() -> dict:
+    """Aggregate analytics across all runs."""
+    runs = store.list()
+    all_findings = []
+    all_deps = {}
+    sev_counts = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0}
+    cve_counts = {}
+    dep_counts = {}
+    lang_counts = {}
+    repo_counts = {}
+    status_counts = {"completed": 0, "failed": 0, "running": 0, "queued": 0}
+    total_fixes = 0
+    
+    for run in runs:
+        status_counts[run.status.value if hasattr(run.status, 'value') else str(run.status)] = status_counts.get(run.status.value if hasattr(run.status, 'value') else str(run.status), 0) + 1
+        for lang in (run.languages or []):
+            lang_counts[lang] = lang_counts.get(lang, 0) + 1
+        repo_counts[run.repo_url] = repo_counts.get(run.repo_url, 0) + 1
+        for f in (run.findings or []):
+            sev = f.severity.value if hasattr(f.severity, 'value') else str(f.severity)
+            sev_counts[sev] = sev_counts.get(sev, 0) + 1
+            cve_counts[f.cve] = cve_counts.get(f.cve, 0) + 1
+            dep_counts[f.dependency] = dep_counts.get(f.dependency, 0) + 1
+        total_fixes += len(run.proposals or [])
+    
+    # Developer recommendations based on common vulnerabilities
+    recommendations = []
+    top_deps = sorted(dep_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+    for dep, count in top_deps:
+        if "log4j" in dep.lower():
+            recommendations.append({"title": "Audit Log4j Usage", "desc": f"Log4j found in {count} scans. Migrate to Log4j 2.17+ and disable JNDI lookups.", "severity": "Critical"})
+        elif "commons" in dep.lower():
+            recommendations.append({"title": f"Review {dep.split(':')[-1]}", "desc": f"Found in {count} scans. Pin to latest stable versions in CI/CD.", "severity": "High"})
+        elif "jackson" in dep.lower():
+            recommendations.append({"title": "Jackson Polymorphic Deserialization", "desc": f"Jackson found in {count} scans. Disable default typing and use @JsonTypeInfo.", "severity": "High"})
+        elif "snakeyaml" in dep.lower():
+            recommendations.append({"title": "SnakeYAML Safe Loading", "desc": f"Found in {count} scans. Use SafeConstructor for untrusted YAML input.", "severity": "Critical"})
+    
+    if not recommendations:
+        recommendations.append({"title": "Enable SAST in CI/CD", "desc": "Integrate static analysis tools in your pipeline to catch vulnerabilities before deploy.", "severity": "Medium"})
+    
+    recommendations.append({"title": "Dependency Scanning Policy", "desc": "Run weekly dependency scans and enforce auto-remediation for Critical/High CVEs.", "severity": "High"})
+    recommendations.append({"title": "Version Pinning", "desc": "Pin all dependencies to specific versions. Avoid wildcard versions (e.g., 2.x).", "severity": "Medium"})
+    
+    return {
+        "total_runs": len(runs),
+        "total_vulnerabilities": sum(sev_counts.values()),
+        "total_fixes_applied": total_fixes,
+        "severity_distribution": sev_counts,
+        "top_cves": [{"cve": k, "count": v} for k, v in sorted(cve_counts.items(), key=lambda x: x[1], reverse=True)[:10]],
+        "top_dependencies": [{"dependency": k, "count": v} for k, v in top_deps],
+        "language_distribution": lang_counts,
+        "repo_distribution": [{"repo": k.split("/")[-1].replace(".git",""), "url": k, "count": v} for k, v in sorted(repo_counts.items(), key=lambda x: x[1], reverse=True)[:5]],
+        "status_distribution": status_counts,
+        "recommendations": recommendations,
+        "exploitation_risks": {
+            "CVE-2021-44228": {"name": "Log4Shell", "impact": "Remote Code Execution via JNDI injection. Attacker can execute arbitrary code on the server.", "cvss": 10.0, "affected": "log4j-core < 2.17"},
+            "CVE-2022-42889": {"name": "Text4Shell", "impact": "Remote Code Execution via string interpolation in Commons Text. Can leak secrets or execute commands.", "cvss": 9.8, "affected": "commons-text < 1.10"},
+            "CVE-2020-36518": {"name": "Jackson DoS", "impact": "Denial of Service via deeply nested JSON objects causing stack overflow.", "cvss": 7.5, "affected": "jackson-databind < 2.14"},
+            "CVE-2022-1471": {"name": "SnakeYAML RCE", "impact": "Remote Code Execution via malicious YAML deserialization with SnakeYAML.", "cvss": 9.8, "affected": "snakeyaml < 2.0"},
+            "CVE-2021-29425": {"name": "Commons IO Path Traversal", "impact": "Path traversal allowing file system access outside intended directories.", "cvss": 7.5, "affected": "commons-io < 2.7"},
+        },
+    }
+
 @app.get("/")
 async def index() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "index.html")
