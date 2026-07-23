@@ -446,12 +446,87 @@ async def executive_summary_pdf(run_id: str) -> Response:
     }
     return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
 
+# Static fallback for known CVEs (used when NVD API is unavailable)
+_KNOWN_CVE_RISKS = {
+    "CVE-2021-44228": {"name": "Log4Shell", "impact": "Remote Code Execution via JNDI injection. Attacker can execute arbitrary code on the server.", "cvss": 10.0, "affected": "log4j-core < 2.17"},
+    "CVE-2022-42889": {"name": "Text4Shell", "impact": "Remote Code Execution via string interpolation in Commons Text.", "cvss": 9.8, "affected": "commons-text < 1.10"},
+    "CVE-2020-36518": {"name": "Jackson DoS", "impact": "Denial of Service via deeply nested JSON objects.", "cvss": 7.5, "affected": "jackson-databind < 2.14"},
+    "CVE-2022-1471": {"name": "SnakeYAML RCE", "impact": "Remote Code Execution via malicious YAML deserialization.", "cvss": 9.8, "affected": "snakeyaml < 2.0"},
+    "CVE-2021-29425": {"name": "Commons IO Path Traversal", "impact": "Path traversal allowing file system access outside intended directories.", "cvss": 7.5, "affected": "commons-io < 2.7"},
+}
+
+def _query_nvd_cve(cve_id: str) -> dict | None:
+    """Query NVD API for real-time CVE details. Returns None on failure."""
+    import urllib.request, json as _json
+    try:
+        url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={cve_id}"
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
+        vuln = data.get("vulnerabilities", [{}])[0].get("cve", {})
+        # Extract CVSS
+        metrics = vuln.get("metrics", {})
+        cvss_data = metrics.get("cvssMetricV31", metrics.get("cvssMetricV30", [{}]))[0]
+        cvss_score = cvss_data.get("cvssData", {}).get("baseScore", 0)
+        # Extract description
+        descs = vuln.get("descriptions", [])
+        desc = next((d["value"] for d in descs if d.get("lang") == "en"), "")
+        # Extract affected products
+        weaknesses = vuln.get("weaknesses", [])
+        affected = ""
+        for config in vuln.get("configurations", []):
+            for node in config.get("nodes", []):
+                for cpe in node.get("cpeMatch", []):
+                    if cpe.get("vulnerable"):
+                        affected = cpe.get("criteria", "").split(":")[3] if "criteria" in cpe else ""
+                        break
+        return {
+            "name": cve_id,
+            "impact": desc[:300] + "..." if len(desc) > 300 else desc,
+            "cvss": cvss_score,
+            "affected": affected or "See NVD",
+            "source": "nvd",
+        }
+    except Exception:
+        return None
+
+def _generate_recommendations(dep_counts: dict, cve_risks: dict) -> list:
+    """Generate dynamic developer recommendations based on real data."""
+    recs = []
+    for dep, count in sorted(dep_counts.items(), key=lambda x: x[1], reverse=True)[:8]:
+        dep_lower = dep.lower()
+        name = dep.split(":")[-1] if ":" in dep else dep
+        if "log4j" in dep_lower:
+            recs.append({"title": "Audit Log4j Usage", "desc": f"Log4j found in {count} scans. Migrate to Log4j 2.17+ and disable JNDI lookups. Review all logging configurations for unsafe patterns.", "severity": "Critical"})
+        elif "jackson" in dep_lower:
+            recs.append({"title": "Jackson Deserialization Hardening", "desc": f"Jackson found in {count} scans. Disable polymorphic default typing, use @JsonTypeInfo annotations, and enable FAIL_ON_UNKNOWN_PROPERTIES.", "severity": "High"})
+        elif "snakeyaml" in dep_lower:
+            recs.append({"title": "SnakeYAML Safe Loading", "desc": f"SnakeYAML found in {count} scans. Use SafeConstructor for untrusted YAML input. Upgrade to 2.0+.", "severity": "Critical"})
+        elif "commons-text" in dep_lower:
+            recs.append({"title": "Commons Text Interpolation", "desc": f"Found in {count} scans. Disable string interpolation (lookup) for untrusted input. Upgrade to 1.10+.", "severity": "Critical"})
+        elif "commons-io" in dep_lower:
+            recs.append({"title": "File Path Validation", "desc": f"Commons IO found in {count} scans. Validate and sanitize file paths. Use canonical path checking.", "severity": "High"})
+        elif "dom4j" in dep_lower:
+            recs.append({"title": "XML External Entity (XXE) Protection", "desc": f"dom4j found in {count} scans. Disable DTD processing and external entity resolution.", "severity": "Critical"})
+        elif "xstream" in dep_lower:
+            recs.append({"title": "XStream Deserialization", "desc": f"XStream found in {count} scans. Use allowlists for deserialization. Upgrade to latest version with security framework.", "severity": "Critical"})
+        elif "guava" in dep_lower:
+            recs.append({"title": "Guava Temp File Security", "desc": f"Guava found in {count} scans. Use Files.createTempDir() carefully. Upgrade to 32.0+.", "severity": "Medium"})
+        elif "requests" in dep_lower or "urllib3" in dep_lower:
+            recs.append({"title": "HTTP Client Security", "desc": f"{name} found in {count} scans. Enable certificate verification, set timeouts, and avoid SSL verification bypass.", "severity": "High"})
+        elif "express" in dep_lower or "axios" in dep_lower:
+            recs.append({"title": "Node.js HTTP Security", "desc": f"{name} found in {count} scans. Use helmet.js, enable CORS restrictions, validate all inputs.", "severity": "Medium"})
+    
+    # Always include best practices
+    recs.append({"title": "Dependency Scanning Policy", "desc": "Run weekly dependency scans and enforce auto-remediation for Critical/High CVEs.", "severity": "High"})
+    recs.append({"title": "Version Pinning", "desc": "Pin all dependencies to specific versions. Avoid wildcard versions (e.g., 2.x).", "severity": "Medium"})
+    recs.append({"title": "SAST Integration", "desc": "Integrate static analysis (SonarQube, Snyk) in CI/CD to catch vulnerabilities before deploy.", "severity": "Medium"})
+    return recs
+
 @app.get("/api/analytics")
 async def analytics() -> dict:
     """Aggregate analytics across all runs."""
     runs = store.list()
-    all_findings = []
-    all_deps = {}
     sev_counts = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0}
     cve_counts = {}
     dep_counts = {}
@@ -461,7 +536,8 @@ async def analytics() -> dict:
     total_fixes = 0
     
     for run in runs:
-        status_counts[run.status.value if hasattr(run.status, 'value') else str(run.status)] = status_counts.get(run.status.value if hasattr(run.status, 'value') else str(run.status), 0) + 1
+        s = run.status.value if hasattr(run.status, 'value') else str(run.status)
+        status_counts[s] = status_counts.get(s, 0) + 1
         for lang in (run.languages or []):
             lang_counts[lang] = lang_counts.get(lang, 0) + 1
         repo_counts[run.repo_url] = repo_counts.get(run.repo_url, 0) + 1
@@ -472,43 +548,33 @@ async def analytics() -> dict:
             dep_counts[f.dependency] = dep_counts.get(f.dependency, 0) + 1
         total_fixes += len(run.proposals or [])
     
-    # Developer recommendations based on common vulnerabilities
-    recommendations = []
-    top_deps = sorted(dep_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-    for dep, count in top_deps:
-        if "log4j" in dep.lower():
-            recommendations.append({"title": "Audit Log4j Usage", "desc": f"Log4j found in {count} scans. Migrate to Log4j 2.17+ and disable JNDI lookups.", "severity": "Critical"})
-        elif "commons" in dep.lower():
-            recommendations.append({"title": f"Review {dep.split(':')[-1]}", "desc": f"Found in {count} scans. Pin to latest stable versions in CI/CD.", "severity": "High"})
-        elif "jackson" in dep.lower():
-            recommendations.append({"title": "Jackson Polymorphic Deserialization", "desc": f"Jackson found in {count} scans. Disable default typing and use @JsonTypeInfo.", "severity": "High"})
-        elif "snakeyaml" in dep.lower():
-            recommendations.append({"title": "SnakeYAML Safe Loading", "desc": f"Found in {count} scans. Use SafeConstructor for untrusted YAML input.", "severity": "Critical"})
+    # DYNAMIC: Query NVD API for real-time CVE risks (top 10 CVEs)
+    top_cves = sorted(cve_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    exploitation_risks = {}
+    for cve, count in top_cves:
+        # Try NVD API first (dynamic)
+        nvd_data = _query_nvd_cve(cve)
+        if nvd_data:
+            exploitation_risks[cve] = nvd_data
+        elif cve in _KNOWN_CVE_RISKS:
+            # Fallback to static data
+            exploitation_risks[cve] = {**_KNOWN_CVE_RISKS[cve], "source": "fallback"}
     
-    if not recommendations:
-        recommendations.append({"title": "Enable SAST in CI/CD", "desc": "Integrate static analysis tools in your pipeline to catch vulnerabilities before deploy.", "severity": "Medium"})
-    
-    recommendations.append({"title": "Dependency Scanning Policy", "desc": "Run weekly dependency scans and enforce auto-remediation for Critical/High CVEs.", "severity": "High"})
-    recommendations.append({"title": "Version Pinning", "desc": "Pin all dependencies to specific versions. Avoid wildcard versions (e.g., 2.x).", "severity": "Medium"})
+    # DYNAMIC: Generate recommendations from real dependency data
+    recommendations = _generate_recommendations(dep_counts, exploitation_risks)
     
     return {
         "total_runs": len(runs),
         "total_vulnerabilities": sum(sev_counts.values()),
         "total_fixes_applied": total_fixes,
         "severity_distribution": sev_counts,
-        "top_cves": [{"cve": k, "count": v} for k, v in sorted(cve_counts.items(), key=lambda x: x[1], reverse=True)[:10]],
-        "top_dependencies": [{"dependency": k, "count": v} for k, v in top_deps],
+        "top_cves": [{"cve": k, "count": v} for k, v in top_cves],
+        "top_dependencies": [{"dependency": k, "count": v} for k, v in sorted(dep_counts.items(), key=lambda x: x[1], reverse=True)[:10]],
         "language_distribution": lang_counts,
         "repo_distribution": [{"repo": k.split("/")[-1].replace(".git",""), "url": k, "count": v} for k, v in sorted(repo_counts.items(), key=lambda x: x[1], reverse=True)[:5]],
         "status_distribution": status_counts,
         "recommendations": recommendations,
-        "exploitation_risks": {
-            "CVE-2021-44228": {"name": "Log4Shell", "impact": "Remote Code Execution via JNDI injection. Attacker can execute arbitrary code on the server.", "cvss": 10.0, "affected": "log4j-core < 2.17"},
-            "CVE-2022-42889": {"name": "Text4Shell", "impact": "Remote Code Execution via string interpolation in Commons Text. Can leak secrets or execute commands.", "cvss": 9.8, "affected": "commons-text < 1.10"},
-            "CVE-2020-36518": {"name": "Jackson DoS", "impact": "Denial of Service via deeply nested JSON objects causing stack overflow.", "cvss": 7.5, "affected": "jackson-databind < 2.14"},
-            "CVE-2022-1471": {"name": "SnakeYAML RCE", "impact": "Remote Code Execution via malicious YAML deserialization with SnakeYAML.", "cvss": 9.8, "affected": "snakeyaml < 2.0"},
-            "CVE-2021-29425": {"name": "Commons IO Path Traversal", "impact": "Path traversal allowing file system access outside intended directories.", "cvss": 7.5, "affected": "commons-io < 2.7"},
-        },
+        "exploitation_risks": exploitation_risks,
     }
 
 @app.get("/")
