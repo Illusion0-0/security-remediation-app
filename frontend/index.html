@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SecureRemediate</title>
+  <title>dbSecureRemediate</title>
   <link rel="stylesheet" href="/styles.css" />
   <script>
     window.API_BASE_URL = localStorage.getItem("API_BASE_URL") || "";
@@ -13,7 +13,7 @@
   <nav class="nav">
     <div class="nav-brand">
       <div class="nav-dot">◈</div>
-      <span>SecureRemediate</span>
+      <span>dbSecureRemediate</span>
     </div>
     <div class="nav-actions">
       <div class="theme-switch">
@@ -21,16 +21,89 @@
         <button class="theme-btn" data-theme="dark">🌙</button>
         <button class="theme-btn" data-theme="contrast">◐</button>
       </div>
-      <button id="open-scan-modal" class="btn-primary slim">+ Scan</button>
+      <button id="open-scan-modal" class="btn-primary slim">+ New Scan</button>
       <button id="home-button" class="slim">Home</button>
     </div>
   </nav>
 
   <main class="layout">
+    <!-- Landing Page -->
     <section class="page active" id="dashboard-page">
-      <div class="card">
+      <!-- Hero -->
+      <div class="hero">
+        <h1>🔒 dbSecureRemediate</h1>
+        <p class="hero-sub">AI-Powered Security Remediation Platform</p>
+        <p class="hero-desc">Automatically scans your repositories for vulnerabilities, applies fixes, validates with tests, and raises pull requests — all in one click.</p>
+        <div class="hero-actions">
+          <button id="hero-scan-btn" class="btn-primary" style="font-size:1rem;padding:0.7rem 1.5rem;">⚡ Start New Scan</button>
+          <button id="hero-runs-btn" class="slim" style="font-size:0.9rem;padding:0.7rem 1.5rem;">📊 View Recent Runs</button>
+        </div>
+      </div>
+
+      <!-- Architecture Flow Diagram -->
+      <div class="card" style="margin-top:1.5rem;">
+        <div class="card-head"><h2>🔧 How It Works</h2></div>
+        <div class="flow-diagram">
+          <div class="flow-step" data-step="1">
+            <div class="flow-icon">🔍</div>
+            <div class="flow-label">Scan</div>
+            <div class="flow-desc">OSV.dev queries<br/>Java · Python · Node.js</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step" data-step="2">
+            <div class="flow-icon">📋</div>
+            <div class="flow-label">Plan</div>
+            <div class="flow-desc">Version bump<br/>proposals</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step" data-step="3">
+            <div class="flow-icon">⚙️</div>
+            <div class="flow-label">Apply</div>
+            <div class="flow-desc">Edit pom.xml<br/>+ code fixes</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step" data-step="4">
+            <div class="flow-icon">✅</div>
+            <div class="flow-label">Validate</div>
+            <div class="flow-desc">Breaking change<br/>detection</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step" data-step="5">
+            <div class="flow-icon">🔀</div>
+            <div class="flow-label">PR</div>
+            <div class="flow-desc">GitHub Pull<br/>Request</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature Cards -->
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🌐</div>
+          <h3>Multi-Language</h3>
+          <p>Java (Maven), Python (pip), Node.js (npm) — all from one scan.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🤖</div>
+          <h3>AI-Powered Fixes</h3>
+          <p>GLM-4.5 detects breaking changes and applies code fixes automatically.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3>Evidence & Reports</h3>
+          <p>PDF executive summaries, CVE mappings, and full audit trail.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>Instant PRs</h3>
+          <p>Automated GitHub PRs with version bumps and code fixes in seconds.</p>
+        </div>
+      </div>
+
+      <!-- Recent Runs -->
+      <div class="card" style="margin-top:1.5rem;">
         <div class="card-head">
-          <h2>Dashboard</h2>
+          <h2>Recent Runs</h2>
           <button id="refresh-runs" class="slim">↻</button>
         </div>
         <div class="stats" id="stats"></div>
@@ -103,6 +176,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=5"></script>
+  <script src="/app.js?v=6"></script>
 </body>
 </html>

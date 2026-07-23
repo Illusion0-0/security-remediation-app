@@ -184,6 +184,10 @@ document.querySelectorAll(".theme-btn").forEach(btn => {
   btn.addEventListener("click", () => applyTheme(btn.dataset.theme));
 });
 
+$("hero-scan-btn").addEventListener("click", openScanModal);
+$("hero-runs-btn").addEventListener("click", () => {
+  document.querySelector('#runs-table').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 $("open-scan-modal").addEventListener("click", openScanModal);
 $("close-scan-modal").addEventListener("click", closeScanModal);
 scanModalBackdropEl.addEventListener("click", closeScanModal);
