@@ -127,19 +127,213 @@ async function startRemediation(runId) {
 }
 window.startRemediation = startRemediation;
 
+let charts = {};
+let activeTab = "executive";
+
 function renderRunDetail(run) {
   hintEl.style.display="none";
-  const findingsHtml=(run.findings||[]).map(f=>`<div class="vuln-row"><div class="vuln-info"><div class="vuln-name">${escapeHtml(f.dependency)}</div><div class="vuln-detail"><span class="mono">${escapeHtml(f.current_version)}</span><span class="vuln-arrow">→</span><span class="mono" style="color:var(--success);">${escapeHtml((f.recommended_versions||[])[0]||f.fixed_version||"?")}</span><span>${escapeHtml(f.cve)}</span></div></div>${severityBadge(f.severity)}</div>`).join("");
-  const proposalsHtml=(run.proposals||[]).map(p=>`<div class="vuln-row" style="flex-direction:column;align-items:stretch;"><div class="between"><div class="vuln-info"><div class="vuln-name">${escapeHtml(p.dependency)}</div><div class="vuln-detail"><span class="mono">${escapeHtml(p.from_version)}</span><span class="vuln-arrow">→</span><span class="mono" style="color:var(--success);">${escapeHtml(p.to_version)}</span></div></div><span class="badge ${p.approval_status==="approved"?"completed":"queued"}">${escapeHtml(p.approval_status)}</span></div>${p.reasoning?`<div class="muted" style="font-size:0.76rem;margin-top:0.3rem;">${escapeHtml(p.reasoning)}</div>`:""}</div>`).join("");
-  const eventsHtml=(run.events||[]).slice(-10).map(e=>`<div style="font-size:0.76rem;padding:0.25rem 0;border-bottom:1px solid var(--border);">${e.level==="error"?"❌":e.level==="warn"?"⚠️":"ℹ️"} <span class="mono muted">${escapeHtml(e.message)}</span></div>`).join("");
-  const pr=run.pull_request||{};
-  const rem=run.remediation_summary||{};
-  const changesHtml=(rem.changes||[]).map(c=>`<div class="vuln-row"><div class="vuln-info"><div class="vuln-name">${escapeHtml(c.dependency)}</div><div class="vuln-detail"><span class="mono">${escapeHtml(c.old_version||"(none)")}</span><span class="vuln-arrow">→</span><span class="mono" style="color:var(--success);">${escapeHtml(c.new_version)}</span></div></div></div>`).join("");
-  const evidenceHtml=run.evidence?`<div class="vuln-row"><div class="vuln-info"><div class="vuln-name">Summary</div><div class="vuln-detail">${escapeHtml(run.evidence.summary)}</div></div></div>`:'<p class="muted">Pending...</p>';
-  const prHtml=pr.url?`<div class="vuln-row"><div class="vuln-info"><div class="vuln-name">PR</div><div class="vuln-detail"><a href="${escapeHtml(pr.url)}" target="_blank" style="color:var(--accent);">${escapeHtml(pr.url)}</a></div></div><span class="badge ${pr.status==="created"?"completed":"queued"}">${escapeHtml(pr.status)}</span></div>`:`<div class="vuln-row"><div class="vuln-info"><div class="vuln-detail">${escapeHtml(pr.reason||pr.status||"Not created")}</div></div></div>`;
-  const gate=(run.phase==="awaiting_remediation_start"&&(run.findings||[]).length>0&&!run.remediation_requested)?`<div class="section" style="border-color:var(--medium);background:rgba(202,138,4,0.05);"><h3 style="color:var(--medium);">⚠️ Approval Needed</h3><button class="btn-primary" onclick="startRemediation('${run.id}')">▶ Start Remediation</button></div>`:"";
+  const findings = run.findings || [];
+  const proposals = run.proposals || [];
+  const rem = run.remediation_summary || {};
+  const events = run.events || [];
+  const pr = run.pull_request || {};
 
-  detailEl.innerHTML=`<div class="between mb"><div class="flex gap-sm">${statusBadge(run.status)}<span class="badge queued">${escapeHtml(run.phase)}</span></div><span class="muted" style="font-size:0.78rem;">${escapeHtml(run.id.slice(0,8))}</span></div><div class="muted" style="font-size:0.78rem;margin-bottom:0.5rem;">Repo: <span class="mono">${escapeHtml(run.repo_url)}</span></div>${gate}<div class="mt"><div class="section"><h3>🔒 Vulnerabilities (${(run.findings||[]).length})</h3>${findingsHtml||'<div class="empty"><p>None 🎉</p></div>'}</div><div class="section"><h3>🔧 Proposals (${(run.proposals||[]).length})</h3>${proposalsHtml||'<div class="empty"><p>None</p></div>'}</div>${(rem.changes||[]).length?`<div class="section"><h3>📝 Changes (${(rem.changes||[]).length})</h3>${changesHtml}</div>`:""}<div class="section"><h3>🔀 PR</h3>${prHtml}</div><div class="section"><h3>📋 Evidence</h3>${evidenceHtml}</div>${eventsHtml?`<div class="section"><h3>📜 Log</h3>${eventsHtml}</div>`:""}</div>`;
+  // Header with status + gate
+  const gate=(run.phase==="awaiting_remediation_start"&&findings.length>0&&!run.remediation_requested)?`<div class="section" style="border-color:var(--medium);background:rgba(202,138,4,0.05);"><h3 style="color:var(--medium);">⚠️ Approval Needed</h3><button class="btn-primary" onclick="startRemediation('${run.id}')">▶ Start Remediation</button></div>`:"";
+
+  // Tab nav
+  const tabs = `
+    <div class="tab-nav" id="report-tabs">
+      <button class="tab-btn ${activeTab==='executive'?'active':''}" data-tab="executive">📊 Executive</button>
+      <button class="tab-btn ${activeTab==='vulnerabilities'?'active':''}" data-tab="vulnerabilities">🔒 Vulnerabilities</button>
+      <button class="tab-btn ${activeTab==='changes'?'active':''}" data-tab="changes">📝 Changes</button>
+      <button class="tab-btn ${activeTab==='codefix'?'active':''}" data-tab="codefix">🔧 Code Fix</button>
+      <button class="tab-btn ${activeTab==='tests'?'active':''}" data-tab="tests">✅ Tests</button>
+      <button class="tab-btn ${activeTab==='score'?'active':''}" data-tab="score">📈 Score</button>
+    </div>
+    <div class="tab-content" id="tab-content"></div>`;
+
+  detailEl.innerHTML = `<div class="between mb"><div class="flex gap-sm">${statusBadge(run.status)}<span class="badge queued">${escapeHtml(run.phase)}</span></div><span class="muted" style="font-size:0.78rem;">${escapeHtml(run.id.slice(0,8))}</span></div><div class="muted" style="font-size:0.78rem;margin-bottom:0.5rem;">Repo: <span class="mono">${escapeHtml(run.repo_url)}</span></div>${gate}${tabs}`;
+
+  // Tab switching
+  detailEl.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      activeTab = btn.dataset.tab;
+      detailEl.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderTab(activeTab, run);
+    });
+  });
+
+  renderTab(activeTab, run);
+}
+
+function renderTab(tab, run) {
+  const c = document.getElementById("tab-content");
+  if (!c) return;
+  const findings = run.findings || [];
+  const proposals = run.proposals || [];
+  const rem = run.remediation_summary || {};
+  const events = run.events || [];
+  const pr = run.pull_request || {};
+
+  switch(tab) {
+    case "executive":
+      c.innerHTML = renderExecutiveTab(run, findings, proposals, rem, pr);
+      break;
+    case "vulnerabilities":
+      c.innerHTML = renderVulnTab(findings);
+      break;
+    case "changes":
+      c.innerHTML = renderChangesTab(rem, proposals);
+      break;
+    case "codefix":
+      c.innerHTML = renderCodeFixTab(rem);
+      break;
+    case "tests":
+      c.innerHTML = renderTestsTab(events);
+      setTimeout(() => drawTestChart(events), 100);
+      break;
+    case "score":
+      c.innerHTML = renderScoreTab(findings, proposals);
+      setTimeout(() => drawScoreChart(findings, proposals), 100);
+      break;
+  }
+}
+
+// Tab 1: Executive
+function renderExecutiveTab(run, findings, proposals, rem, pr) {
+  const crit = findings.filter(f=>f.severity==="Critical").length;
+  const high = findings.filter(f=>f.severity==="High").length;
+  const med = findings.filter(f=>f.severity==="Medium").length;
+  const low = findings.filter(f=>f.severity==="Low").length;
+  const sevBars = (crit+high+med+low) > 0 ? `
+    <div class="section" style="margin-top:0.75rem;">
+      <h3>Severity Distribution</h3>
+      <div style="display:flex;gap:0.4rem;margin-top:0.5rem;">
+        <div class="sev-bar critical" style="flex:${crit||0.5};min-width:40px;">${crit}</div>
+        <div class="sev-bar high" style="flex:${high||0.5};min-width:30px;">${high}</div>
+        <div class="sev-bar medium" style="flex:${med||0.5};min-width:30px;">${med}</div>
+        <div class="sev-bar low" style="flex:${low||0.5};min-width:20px;">${low}</div>
+      </div>
+    </div>` : "";
+  return `
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-num" style="color:var(--critical)">${findings.length}</div><div class="kpi-label">Vulnerabilities</div></div>
+      <div class="kpi-card"><div class="kpi-num" style="color:var(--success)">${proposals.length}</div><div class="kpi-label">Fixes Applied</div></div>
+      <div class="kpi-card"><div class="kpi-num" style="color:var(--accent)">${(rem.changed_files||[]).length}</div><div class="kpi-label">Files Changed</div></div>
+      <div class="kpi-card"><div class="kpi-num">${pr.status==="created"?"✅":"⏳"}</div><div class="kpi-label">PR Status</div></div>
+    </div>
+    ${sevBars}
+    <div class="section" style="margin-top:0.75rem;">
+      <h3>Run Info</h3>
+      <table class="data-table">
+        <tr><td>Status</td><td>${statusBadge(run.status)}</td></tr>
+        <tr><td>Phase</td><td>${escapeHtml(run.phase)}</td></tr>
+        <tr><td>Languages</td><td>${(run.languages||[]).join(", ")||"All"}</td></tr>
+        <tr><td>Evidence</td><td class="muted">${escapeHtml(run.evidence?.summary||"Pending...")}</td></tr>
+        ${pr.url?`<tr><td>Pull Request</td><td><a href="${escapeHtml(pr.url)}" target="_blank" style="color:var(--accent);">${escapeHtml(pr.url)}</a></td></tr>`:""}
+      </table>
+    </div>`;
+}
+
+// Tab 2: Vulnerabilities
+function renderVulnTab(findings) {
+  if (!findings.length) return `<div class="empty"><p>No vulnerabilities detected 🎉</p></div>`;
+  return `
+    <table class="data-table">
+      <thead><tr><th>Severity</th><th>Dependency</th><th>Current</th><th>Fixed</th><th>CVE</th></tr></thead>
+      <tbody>
+        ${findings.map(f=>`<tr>
+          <td>${severityBadge(f.severity)}</td>
+          <td><strong>${escapeHtml(f.dependency)}</strong></td>
+          <td class="mono">${escapeHtml(f.current_version)}</td>
+          <td class="mono" style="color:var(--success);">${escapeHtml((f.recommended_versions||[])[0]||f.fixed_version||"?")}</td>
+          <td class="mono"><a href="https://nvd.nist.gov/vuln/detail/${escapeHtml(f.cve)}" target="_blank" style="color:var(--accent);">${escapeHtml(f.cve)}</a></td>
+        </tr>`).join("")}
+      </tbody>
+    </table>`;
+}
+
+// Tab 3: Changes
+function renderChangesTab(rem, proposals) {
+  const changes = rem.changes || [];
+  const data = changes.length ? changes : proposals.map(p=>({dependency:p.dependency, old_version:p.from_version, new_version:p.to_version, file_path:""}));
+  if (!data.length) return `<div class="empty"><p>No changes recorded.</p></div>`;
+  return `
+    <table class="data-table">
+      <thead><tr><th>Dependency</th><th>Old</th><th>→</th><th>New</th><th>File</th></tr></thead>
+      <tbody>
+        ${data.map(c=>`<tr>
+          <td><strong>${escapeHtml(c.dependency)}</strong></td>
+          <td class="mono">${escapeHtml(c.old_version||"?")}</td>
+          <td style="color:var(--accent);">→</td>
+          <td class="mono" style="color:var(--success);font-weight:600;">${escapeHtml(c.new_version||"?")}</td>
+          <td class="mono" style="font-size:0.72rem;color:var(--text-dim);">${escapeHtml(c.file_path||"")}</td>
+        </tr>`).join("")}
+      </tbody>
+    </table>`;
+}
+
+// Tab 4: Code Fix
+function renderCodeFixTab(rem) {
+  const diff = rem.diff_excerpt || "";
+  if (!diff) return `<div class="empty"><p>No code fixes needed.</p></div>`;
+  const lines = diff.split("\n").slice(0, 100);
+  return `<div class="diff-view">${lines.map(l => {
+    const cls = l.startsWith("+") ? "diff-add" : l.startsWith("-") ? "diff-del" : "diff-ctx";
+    return `<div class="${cls}">${escapeHtml(l) || "&nbsp;"}</div>`;
+  }).join("")}</div>`;
+}
+
+// Tab 5: Tests
+function renderTestsTab(events) {
+  const testEvents = events.filter(e => e.message.toLowerCase().includes("test") || e.message.includes("passed") || e.message.includes("failed") || e.message.includes("✅") || e.message.includes("❌"));
+  return `
+    <div class="chart-container"><canvas id="test-chart" width="300" height="200"></canvas></div>
+    ${testEvents.length ? `<div class="section" style="margin-top:1rem;"><h3>Test Details</h3>${testEvents.map(e => {
+      const icon = e.message.includes("✅")||e.message.includes("passed") ? "✅" : e.message.includes("❌")||e.message.includes("failed") ? "❌" : "ℹ️";
+      return `<div class="vuln-row"><div class="vuln-info"><div class="vuln-name">${icon} ${escapeHtml(e.message)}</div></div></div>`;
+    }).join("")}</div>` : ""}`;
+}
+
+function drawTestChart(events) {
+  const ctx = document.getElementById("test-chart");
+  if (!ctx || typeof Chart === "undefined") return;
+  if (charts.test) charts.test.destroy();
+  const passed = events.filter(e=>e.message.includes("✅")||e.message.includes("passed")).length;
+  const failed = events.filter(e=>e.message.includes("❌")||e.message.includes("failed")).length;
+  charts.test = new Chart(ctx, {
+    type: "bar",
+    data: { labels: ["Passed", "Failed"], datasets: [{ data: [passed||1, failed], backgroundColor: ["#16a34a", "#dc2626"], borderWidth: 0 }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+  });
+}
+
+// Tab 6: Security Score
+function renderScoreTab(findings, proposals) {
+  const total = findings.length;
+  const fixed = proposals.length;
+  const score = total > 0 ? Math.round((fixed / total) * 100) : 100;
+  return `
+    <div style="text-align:center;padding:1rem;">
+      <div class="chart-container"><canvas id="score-chart" width="250" height="250"></canvas></div>
+      <h3 style="margin-top:0.5rem;font-size:1.3rem;">Security Score: ${score}%</h3>
+      <p class="muted">${fixed} of ${total} vulnerabilities remediated</p>
+    </div>`;
+}
+
+function drawScoreChart(findings, proposals) {
+  const ctx = document.getElementById("score-chart");
+  if (!ctx || typeof Chart === "undefined") return;
+  if (charts.score) charts.score.destroy();
+  const fixed = proposals.length;
+  const remaining = Math.max(0, findings.length - fixed);
+  charts.score = new Chart(ctx, {
+    type: "doughnut",
+    data: { labels: ["Fixed", "Remaining"], datasets: [{ data: [fixed, remaining], backgroundColor: ["#16a34a", "#dc2626"], borderWidth: 0 }] },
+    options: { cutout: "70%", plugins: { legend: { position: "bottom" } } }
+  });
 }
 
 async function loadRunDetail() { if(!state.selectedRunId){detailEl.innerHTML="";hintEl.style.display="block";return;} const run=await fetchJson(`/api/runs/${state.selectedRunId}`); showPage("run-detail"); renderRunDetail(run); }
