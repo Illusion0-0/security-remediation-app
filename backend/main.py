@@ -16,7 +16,7 @@ from .models import (
     UIScreenMap,
 )
 from .orchestrator import RemediationOrchestrator
-from .store import RunStore
+from .persistent_store import PersistentRunStore
 
 app = FastAPI(title="Agentic Vulnerability Remediation Prototype", version="0.1.0")
 
@@ -28,7 +28,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-store = RunStore()
+# Use PersistentRunStore (SQLite/PostgreSQL) instead of in-memory RunStore
+# Survives redeployments — loads all previous runs on startup
+store = PersistentRunStore()
 orchestrator = RemediationOrchestrator(store=store)
 
 BASE_DIR = Path(__file__).resolve().parent.parent

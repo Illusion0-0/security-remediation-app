@@ -9,3 +9,5 @@ __pycache__/
 _*.py
 SETUP.md
 start_app.bat
+# Keep data directory for SQLite persistence
+!data/
