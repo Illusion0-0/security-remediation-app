@@ -1,5 +1,4 @@
 # Deployable backend — runs agent + app services in one container
-# Supports Java (Maven tests), Python (pytest), Node.js (npm test)
 FROM python:3.11-slim
 
 # System deps: Java 21, Maven, Node.js 20, Git
@@ -25,9 +24,14 @@ WORKDIR /app
 COPY requirements.txt /app/application/requirements.txt
 RUN pip install --no-cache-dir --only-binary :all: -r /app/application/requirements.txt && pip install pytest
 
-# Clone the agent repo (cache-bust to always get latest)
-ARG CACHEBUST=1
-RUN rm -rf /app/agent && git clone https://github.com/Illusion0-0/security-remediation-agent.git /app/agent
+# Clone the agent repo — use commit SHA for cache busting
+# Render sets RENDER_GIT_COMMIT env var, use it to force fresh clone every build
+ARG RENDER_GIT_COMMIT=latest
+RUN echo "Build commit: ${RENDER_GIT_COMMIT}" && \
+    rm -rf /app/agent && \
+    git clone https://github.com/Illusion0-0/security-remediation-agent.git /app/agent && \
+    cd /app/agent && \
+    git log --oneline -1
 
 # Copy the application code
 COPY . /app/application
