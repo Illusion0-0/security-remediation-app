@@ -364,9 +364,10 @@ async def ui_map() -> UIScreenMap:
 
 @app.post("/api/runs", response_model=RunRecord)
 async def create_run(payload: CreateRunRequest) -> RunRecord:
-    run = RunRecord(repo_url=payload.repo_url, requested_by=payload.requested_by)
+    run = RunRecord(repo_url=payload.repo_url, requested_by=payload.requested_by, languages=payload.languages)
     store.create(run)
-    store.add_event(run.id, f"Run created for repo {payload.repo_url}")
+    lang_msg = f" (languages: {', '.join(payload.languages)})" if payload.languages else ""
+    store.add_event(run.id, f"Run created for repo {payload.repo_url}{lang_msg}")
     await orchestrator.submit(run.id)
     return run
 
