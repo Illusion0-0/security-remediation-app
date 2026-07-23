@@ -171,6 +171,19 @@ scanFormEl.addEventListener("submit", async (event) => {
   await loadRuns();
 });
 
+// ===== THEME SWITCHER =====
+const savedTheme = localStorage.getItem("theme") || "light";
+function applyTheme(theme) {
+  if (theme === "light") { document.documentElement.removeAttribute("data-theme"); }
+  else { document.documentElement.setAttribute("data-theme", theme); }
+  document.querySelectorAll(".theme-btn").forEach(b => b.classList.toggle("active", b.dataset.theme === theme));
+  localStorage.setItem("theme", theme);
+}
+applyTheme(savedTheme);
+document.querySelectorAll(".theme-btn").forEach(btn => {
+  btn.addEventListener("click", () => applyTheme(btn.dataset.theme));
+});
+
 $("open-scan-modal").addEventListener("click", openScanModal);
 $("close-scan-modal").addEventListener("click", closeScanModal);
 scanModalBackdropEl.addEventListener("click", closeScanModal);

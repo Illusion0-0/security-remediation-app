@@ -182,3 +182,75 @@ pre { font-family: 'SF Mono', monospace; font-size: 0.76rem; padding: 0.75rem; b
   .nav { flex-direction: column; gap: 0.4rem; padding: 0.6rem 1rem; }
   .layout { padding: 0.75rem; } .runs-grid { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ==========================================================================
+   THEME: DARK — Frosted glass on dark background (iPhone-style)
+   ========================================================================== */
+[data-theme="dark"] {
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-hover: rgba(255, 255, 255, 0.1);
+  --card-bg: rgba(255, 255, 255, 0.04);
+  --text: #e8eaed;
+  --text-dim: #9aa0a6;
+  --text-faint: #5f6368;
+  --accent: #4f9eff;
+  --accent-light: rgba(79, 158, 255, 0.15);
+  --critical: #ef4444;
+  --high: #f97316;
+  --medium: #eab308;
+  --low: #22c55e;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --border: rgba(255, 255, 255, 0.08);
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] body {
+  background: #0a0e1a;
+  background-image:
+    radial-gradient(circle at 15% 15%, rgba(79, 158, 255, 0.12), transparent 35%),
+    radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.08), transparent 35%);
+}
+
+[data-theme="dark"] .nav { background: rgba(10, 14, 26, 0.7); }
+[data-theme="dark"] button, [data-theme="dark"] .btn { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] button:hover, [data-theme="dark"] .btn:hover { background: rgba(255,255,255,0.12); }
+[data-theme="dark"] .vuln-row { background: rgba(255,255,255,0.03); }
+[data-theme="dark"] .vuln-row:hover { background: rgba(255,255,255,0.08); }
+[data-theme="dark"] .modal-card { background: rgba(20, 27, 45, 0.9); }
+[data-theme="dark"] input { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] input:focus { background: rgba(255,255,255,0.1); }
+[data-theme="dark"] pre { background: rgba(0,0,0,0.3); }
+[data-theme="dark"] .theme-switch { background: rgba(255,255,255,0.06); }
+
+/* ==========================================================================
+   THEME: CONTRAST — High contrast (accessibility)
+   ========================================================================== */
+[data-theme="contrast"] {
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: #000000;
+  --glass-hover: rgba(255, 255, 255, 1);
+  --card-bg: rgba(255, 255, 255, 0.95);
+  --text: #000000;
+  --text-dim: #333333;
+  --text-faint: #555555;
+  --accent: #0000ff;
+  --accent-light: rgba(0, 0, 255, 0.15);
+  --critical: #cc0000;
+  --high: #cc5500;
+  --medium: #996600;
+  --low: #006600;
+  --success: #006600;
+  --danger: #cc0000;
+  --border: #000000;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  --blur: 0px;
+}
+
+[data-theme="contrast"] body { background: #ffffff; background-image: none; }
+[data-theme="contrast"] .nav { background: #ffffff; }
+[data-theme="contrast"] button, [data-theme="contrast"] .btn { background: #ffffff; border-width: 2px; }
+[data-theme="contrast"] .btn-primary { background: #0000ff; }
+[data-theme="contrast"] .modal-card { background: #ffffff; }
+[data-theme="contrast"] .theme-switch { background: #f0f0f0; }
