@@ -481,18 +481,20 @@ scanFormEl.addEventListener("submit", async (event) => {
   await loadRuns();
 });
 
-// ===== THEME SWITCHER =====
+// ===== THEME SWITCHER (Dropdown) =====
 const savedTheme = localStorage.getItem("theme") || "light";
 function applyTheme(theme) {
   if (theme === "light") { document.documentElement.removeAttribute("data-theme"); }
   else { document.documentElement.setAttribute("data-theme", theme); }
-  document.querySelectorAll(".theme-btn").forEach(b => b.classList.toggle("active", b.dataset.theme === theme));
+  const selector = document.getElementById("theme-selector");
+  if (selector) selector.value = theme;
   localStorage.setItem("theme", theme);
 }
 applyTheme(savedTheme);
-document.querySelectorAll(".theme-btn").forEach(btn => {
-  btn.addEventListener("click", () => applyTheme(btn.dataset.theme));
-});
+const themeSelector = document.getElementById("theme-selector");
+if (themeSelector) {
+  themeSelector.addEventListener("change", () => applyTheme(themeSelector.value));
+}
 
 // ===== ANALYTICS PAGE =====
 function showAnalytics() {

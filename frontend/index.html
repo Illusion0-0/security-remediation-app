@@ -17,11 +17,13 @@
       <span>dbSecureRemediate</span>
     </div>
     <div class="nav-actions">
-      <div class="theme-switch">
-        <button class="theme-btn active" data-theme="light">☀️</button>
-        <button class="theme-btn" data-theme="dark">🌙</button>
-        <button class="theme-btn" data-theme="contrast">◐</button>
-      </div>
+      <select id="theme-selector" class="theme-dropdown">
+        <option value="light">☀️ Light</option>
+        <option value="dark">🌙 Dark</option>
+        <option value="contrast">◐ High Contrast</option>
+        <option value="ctf">🏁 Google CTF</option>
+        <option value="matrix">💾 Hacker</option>
+      </select>
       <button id="open-scan-modal" class="btn-primary slim">+ New Scan</button>
       <button id="analytics-button" class="slim">📊 Analytics</button>
       <button id="home-button" class="slim">Home</button>
@@ -120,6 +122,18 @@
     </div>
   </div>
 
-  <script src="/app.js?v=7"></script>
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <p class="footer-brand">© 2026 dbSecureRemediate · Built by <strong>Tarun Mishra</strong></p>
+      <div class="footer-social">
+        <a href="https://instagram.com/iamtarun.in" target="_blank" class="social-link" title="Instagram">📷</a>
+        <a href="https://linkedin.com/in/codestein-tarun" target="_blank" class="social-link" title="LinkedIn">💼</a>
+        <a href="https://github.com/Illusion0-0" target="_blank" class="social-link" title="GitHub">🐙</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/app.js?v=8"></script>
 </body>
 </html>
