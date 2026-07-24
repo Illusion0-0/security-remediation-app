@@ -6,6 +6,7 @@ import logging
 import os
 import smtplib
 import threading
+import urllib.error
 import urllib.request
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -64,14 +65,32 @@ def _send_via_resend(run: RunRecord) -> bool:
         return False
     try:
         to_email = os.getenv("EMAIL_TO", "")
-        from_email = os.getenv("EMAIL_FROM", "dbSecureRemediate <onboarding@resend.dev>")
+        from_email = os.getenv("EMAIL_FROM", "onboarding@resend.dev")
+        # Resend requires plain email for from on free tier (no display name)
         subject = f"[dbSecureRemediate] PR Created - {len(run.findings)} vulns ({run.id[:8]})"
-        payload = json.dumps({"from": from_email, "to": [to_email], "subject": subject, "html": _build_html(run)}).encode("utf-8")
-        req = urllib.request.Request("https://api.resend.com/emails", data=payload, headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, method="POST")
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            if resp.status == 200:
-                logger.info("Email sent via Resend for run %s", run.id)
+        payload = json.dumps({
+            "from": from_email,
+            "to": [to_email],
+            "subject": subject,
+            "html": _build_html(run),
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.resend.com/emails",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                body = resp.read().decode("utf-8", errors="replace")
+                logger.info("Email sent via Resend for run %s: %s", run.id, body[:200])
                 return True
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            logger.error("Resend API error %s for run %s: %s", exc.code, run.id, body[:500])
     except Exception as exc:
         logger.warning("Resend failed for run %s: %s", run.id, exc)
     return False
