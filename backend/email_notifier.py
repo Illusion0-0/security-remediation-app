@@ -80,6 +80,7 @@ def _send_via_resend(run: RunRecord) -> bool:
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
+                "User-Agent": "dbSecureRemediate/1.0",
             },
             method="POST",
         )
