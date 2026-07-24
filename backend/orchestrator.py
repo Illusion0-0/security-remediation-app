@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from .adk_agents.runner import AdkPipelineRunner
+from .email_notifier import send_pr_notification
 from .models import ApprovalStatus, RunRecord, RunStatus
 from .store import RunStore
 
@@ -172,6 +173,12 @@ class RemediationOrchestrator:
         run.status = RunStatus.COMPLETED
         run.phase = "completed"
         self.store.add_event(run.id, "Run completed")
+
+        # Send email notification if PR was created
+        if run.pull_request.status == "created":
+            send_pr_notification(run)
+            self.store.add_event(run.id, "Email notification sent")
+
         self.store.replace(run)
 
     def _build_pr_url(self, repo_url: str, run_id: str) -> str:
