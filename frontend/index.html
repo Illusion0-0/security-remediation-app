@@ -6,22 +6,15 @@
   <title>dbSecureRemediate</title>
   <link rel="stylesheet" href="/styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script>
-    window.API_BASE_URL = localStorage.getItem("API_BASE_URL") || "";
-  </script>
+  <script>window.API_BASE_URL = localStorage.getItem("API_BASE_URL") || "";</script>
 </head>
 <body>
   <nav class="nav">
-    <div class="nav-brand">
-      <div class="nav-dot">◈</div>
-      <span>dbSecureRemediate</span>
-    </div>
+    <div class="nav-brand"><div class="nav-dot">◈</div><span>dbSecureRemediate</span></div>
     <div class="nav-actions">
       <select id="theme-selector" class="theme-dropdown">
-        <option value="light">☀️ Light</option>
-        <option value="dark">🌙 Dark</option>
-        <option value="contrast">◐ High Contrast</option>
-        <option value="ctf">🏁 Google CTF</option>
+        <option value="light">☀️ Light</option><option value="dark">🌙 Dark</option>
+        <option value="contrast">◐ High Contrast</option><option value="ctf">🏁 Google CTF</option>
         <option value="matrix">💾 Hacker</option>
       </select>
       <button id="open-scan-modal" class="btn-primary slim">+ New Scan</button>
@@ -31,7 +24,6 @@
   </nav>
 
   <main class="layout">
-    <!-- Landing Page -->
     <section class="page active" id="dashboard-page">
       <div class="hero">
         <h1>🔒 dbSecureRemediate</h1>
@@ -69,7 +61,6 @@
       </div>
     </section>
 
-    <!-- Analytics Page -->
     <section class="page" id="analytics-page">
       <div class="card">
         <div class="card-head"><h2>📊 Security Analytics Dashboard</h2><button id="analytics-home" class="slim">←</button></div>
@@ -86,10 +77,17 @@
     </section>
   </main>
 
+  <!-- Scan Modal -->
   <div class="modal-shell hidden" id="scan-modal-shell">
     <div class="modal-backdrop" id="scan-modal-backdrop"></div>
     <div class="modal-card">
-      <div class="card-head"><h2>New Scan</h2><button id="close-scan-modal" class="slim">✕</button></div>
+      <div class="card-head">
+        <h2>New Scan</h2>
+        <div class="flex gap-sm">
+          <button id="minimize-scan-modal" class="slim" title="Minimize to background">▼</button>
+          <button id="close-scan-modal" class="slim" title="Close">✕</button>
+        </div>
+      </div>
       <form id="scan-form">
         <label for="repo-url">Repository URL or path</label>
         <input id="repo-url" required placeholder="https://github.com/Illusion0-0/vulnerable-mono-repo" />
@@ -111,15 +109,26 @@
     </div>
   </div>
 
+  <!-- Remediation Modal -->
   <div class="modal-shell hidden" id="remediation-modal-shell">
     <div class="modal-backdrop"></div>
     <div class="modal-card">
-      <div class="card-head"><h2>Remediation</h2></div>
+      <div class="card-head">
+        <h2>Remediation</h2>
+        <button id="minimize-remediation-modal" class="slim" title="Minimize to background">▼</button>
+      </div>
       <div class="between"><strong id="remediation-progress-title" style="font-size: 0.85rem;">Applying fixes...</strong><span class="badge running" id="remediation-progress-phase">remediation_requested</span></div>
       <div class="progress-track"><div class="progress-fill" id="remediation-progress-fill" style="width: 10%;"></div></div>
       <p class="muted" id="remediation-progress-message" style="font-size: 0.78rem;"></p>
       <div id="remediation-commentary" style="margin-top: 0.75rem; padding: 0.75rem; background: rgba(0,0,0,0.03); border-radius: 10px; border: 1px solid var(--border); font-size: 0.72rem; color: var(--text-dim); max-height: 160px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5; font-family: 'SF Mono', monospace;"></div>
     </div>
+  </div>
+
+  <!-- Floating Background Process Pill -->
+  <div id="bg-process-pill" class="bg-pill hidden" onclick="restoreBackgroundProcess()">
+    <span class="bg-pill-icon">⚡</span>
+    <span class="bg-pill-text" id="bg-pill-text">Scan running...</span>
+    <span class="bg-pill-phase" id="bg-pill-phase">queued</span>
   </div>
 
   <!-- Footer -->
@@ -134,6 +143,6 @@
     </div>
   </footer>
 
-  <script src="/app.js?v=8"></script>
+  <script src="/app.js?v=9"></script>
 </body>
 </html>

@@ -458,3 +458,12 @@ pre { font-family: 'SF Mono', monospace; font-size: 0.76rem; padding: 0.75rem; b
   display: inline-block;
 }
 .social-link:hover { opacity: 1; transform: translateY(-2px) scale(1.1); }
+
+/* ===== BACKGROUND PROCESS PILL ===== */
+.bg-pill { position: fixed; bottom: 20px; right: 20px; z-index: 90; display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; border-radius: 24px; background: var(--accent); color: #fff; cursor: pointer; box-shadow: 0 4px 16px rgba(59,130,246,0.4); transition: all 0.2s; animation: pulse 2s infinite; }
+.bg-pill:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(59,130,246,0.5); }
+.bg-pill.hidden { display: none; }
+.bg-pill-icon { font-size: 1rem; }
+.bg-pill-text { font-size: 0.78rem; font-weight: 600; }
+.bg-pill-phase { font-size: 0.68rem; padding: 0.1rem 0.4rem; background: rgba(255,255,255,0.2); border-radius: 4px; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.85; } }

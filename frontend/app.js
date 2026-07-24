@@ -58,6 +58,15 @@ function openScanModal() { scanModalShellEl.classList.remove("hidden"); }
 function resetScanProgress() { state.activeScanRunId=null; scanProgressPanelEl.classList.add("hidden"); scanProgressFillEl.style.width="8%"; scanProgressPhaseEl.textContent="queued"; scanProgressMessageEl.textContent="Waiting..."; startScanButtonEl.disabled=false; }
 function closeScanModal() { if(state.activeScanRunId) return; scanModalShellEl.classList.add("hidden"); scanFormEl.reset(); $("requested-by").value="hackathon-user"; resetScanProgress(); }
 function openRemediationModal() { remediationModalShellEl.classList.remove("hidden"); }
+
+// ===== MINIMIZE / RESTORE (Background Process) =====
+let minimizedModal = null;
+function minimizeScanModal() { if (!state.activeScanRunId) return; minimizedModal="scan"; scanModalShellEl.classList.add("hidden"); showBgPill("scan"); }
+function minimizeRemediationModal() { if (!state.activeRemediationRunId) return; minimizedModal="remediation"; remediationModalShellEl.classList.add("hidden"); showBgPill("remediation"); }
+function showBgPill(type) { const pill=document.getElementById("bg-process-pill"); if(!pill) return; pill.classList.remove("hidden"); document.getElementById("bg-pill-text").textContent=type==="scan"?"Scan in background":"Remediation in background"; }
+function hideBgPill() { const pill=document.getElementById("bg-process-pill"); if(pill) pill.classList.add("hidden"); }
+function restoreBackgroundProcess() { if (minimizedModal==="scan") scanModalShellEl.classList.remove("hidden"); else if (minimizedModal==="remediation") remediationModalShellEl.classList.remove("hidden"); minimizedModal=null; hideBgPill(); }
+window.restoreBackgroundProcess = restoreBackgroundProcess;
 function closeRemediationModal() { if(state.activeRemediationRunId) return; remediationModalShellEl.classList.add("hidden"); remediationProgressFillEl.style.width="10%"; }
 
 function scanProgressValue(phase, status) { if(status==="failed") return 100; const m={queued:10,scanning:35,awaiting_remediation_start:100,remediation_requested:55,remediation:65,remediation_apply:78,validation:88,evidence:96,completed:100,failed:100}; return m[phase]||20; }
@@ -567,6 +576,8 @@ $("hero-runs-btn").addEventListener("click", () => {
 $("open-scan-modal").addEventListener("click", openScanModal);
 $("close-scan-modal").addEventListener("click", closeScanModal);
 scanModalBackdropEl.addEventListener("click", closeScanModal);
+document.getElementById("minimize-scan-modal")?.addEventListener("click", minimizeScanModal);
+document.getElementById("minimize-remediation-modal")?.addEventListener("click", minimizeRemediationModal);
 $("home-button").addEventListener("click", goHome);
 $("run-detail-home").addEventListener("click", goHome);
 $("analytics-button").addEventListener("click", showAnalytics);
